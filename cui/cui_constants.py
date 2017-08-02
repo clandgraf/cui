@@ -1,0 +1,9 @@
+
+
+COLOR_DEFAULT = 1
+COLOR_HIGHLIGHTED = 2
+
+COLOR_MAP = {
+    'default':     COLOR_DEFAULT,
+    'highlighted': COLOR_HIGHLIGHTED
+}
