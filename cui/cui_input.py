@@ -61,13 +61,13 @@ def read_keychord(screen):
         return None
     if key == 27:
         try:
-            std_scr.timeout(0)
+            screen.timeout(0)
             key = screen.getch()
             if key == -1:
                 return '<esc>'
             else:
                 return translate_keyname(curses.keyname(key), meta=True)
         finally:
-            std_scr.timeout(500)
+            screen.timeout(100)
     else:
         return translate_keyname(curses.keyname(key))
