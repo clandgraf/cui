@@ -5,10 +5,9 @@ import math
 
 from cui.cui_buffers import LogBuffer
 from cui.cui_input import read_keychord
-from cui.cui_logger import Logger
-from cui.cui_constants import COLOR_DEFAULT, COLOR_HIGHLIGHTED
+from cui.logger import Logger
 from cui.cui_keymap import WithKeymap
-from cui.cui_util import deep_get, deep_put
+from cui.util import deep_get, deep_put
 
 READ_TIMEOUT = 100
 
@@ -69,49 +68,50 @@ class WindowManager(object):
         """Foobah"""
         self.core = core
 
-        self.root = self._init_root(stdscr)
-        self.active_window = self.root
+        self._root = self._init_root(stdscr)
+        self._active_window = self._root
 
     def _init_root(self, stdscr):
         max_y, max_x = stdscr.getmaxyx()
         dimensions = (max_y - 1, max_x - 1, 0, 0)
         return {
-            'wm_type': 'window',
+            'wm_type':    'window',
             'dimensions': dimensions,
-            'content':  Window(self.core._buffers[0], dimensions),
-            'parent':  None
+            'content':    Window(self.core._buffers[0], dimensions),
+            'parent':     None
         }
 
     def current_window(self):
-        return self.active_window['content']
+        return self._active_window['content']
 
     def split_window_below(self):
-        top_dimensions = (math.ceil(self.active_window['dimensions'][0] / 2.0),
-                          self.active_window['dimensions'][1],
-                          self.active_window['dimensions'][2],
-                          self.active_window['dimensions'][3])
-        bot_dimensions = (math.floor(self.active_window['dimensions'][0] / 2.0),
-                          self.active_window['dimensions'][1],
-                          self.active_window['dimensions'][2] +
-                          math.ceil(self.active_window['dimensions'][0] / 2.0),
-                          self.active_window['dimensions'][3])
+        top_dimensions = (math.ceil(self._active_window['dimensions'][0] / 2.0),
+                          self._active_window['dimensions'][1],
+                          self._active_window['dimensions'][2],
+                          self._active_window['dimensions'][3])
+        bot_dimensions = (math.floor(self._active_window['dimensions'][0] / 2.0),
+                          self._active_window['dimensions'][1],
+                          self._active_window['dimensions'][2] +
+                          math.ceil(self._active_window['dimensions'][0] / 2.0),
+                          self._active_window['dimensions'][3])
         top = {
-            'wm_type': self.active_window['wm_type'],
+            'wm_type':    self._active_window['wm_type'],
             'dimensions': top_dimensions,
-            'content': self.active_window['content'].update_dimensions(top_dimensions),
-            'parent': self.active_window
+            'content':    self._active_window['content'].update_dimensions(top_dimensions),
+            'parent':     self._active_window
         }
         bot = {
             'wm_type':    'window',
             'dimensions': bot_dimensions,
-            'content':    Window(self.active_window['content'].buffer, bot_dimensions),
-            'parent': self.active_window
+            'content':    Window(self._active_window['content'].buffer, bot_dimensions),
+            'parent':     self._active_window
         }
-        self.active_window['wm_type'] = 'bsplit'
-        self.active_window['content'] = [top, bot]
+        self._active_window['wm_type'] = 'bsplit'
+        self._active_window['content'] = [top, bot]
+        self._active_window = top
 
     def render(self):
-        win_stack = [self.root]
+        win_stack = [self._root]
         while win_stack:
             w = win_stack.pop()
             if w['wm_type'] == 'window':

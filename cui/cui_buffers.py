@@ -1,7 +1,6 @@
 import curses
 
-from cui.cui_constants import COLOR_DEFAULT, COLOR_HIGHLIGHTED
-from cui.cui_util import get_base_classes
+from cui.util import get_base_classes
 from cui.cui_keymap import WithKeymap
 
 

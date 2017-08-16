@@ -1,4 +1,4 @@
-from cui.cui_util import deep_put, deep_get, get_base_classes
+from cui.util import deep_put, deep_get, get_base_classes
 
 skey_map = set(['<tab>', '<down>', '<up>'])
 modifiers = ['C', 'M', 'S']
@@ -49,7 +49,12 @@ class Keymap(object):
 
 
 class WithKeymapMeta(type):
+    """Metaclass for handling keyboard input.
+    This class should not be used directly, you should rather subclass WithKeymap.
+    """
     def __init__(cls, name, bases, dct):
+        """Convert a keymap specified as a dictionary to a Keymap object.
+        """
         # Find base with keymap
         keymap_bases = filter(lambda base: isinstance(base, WithKeymapMeta), bases)
         if len(keymap_bases) > 1:
@@ -61,12 +66,21 @@ class WithKeymapMeta(type):
 
 
 class WithKeymap(object):
+    """Superclass for objects handling keyboard input.
+    """
     __metaclass__ = WithKeymapMeta
 
     def __init__(self):
         self._keymap = Keymap({}, self.__class__)
 
     def handle_input(self, keychords):
+        """Handling input from cui.input.
+        A return value is None means the received keychord prefix has no match in
+        this handler, and should be directed to the next handler.
+        If this method returns False, a prefix match is found, but the keychord is
+        not yet complete.
+        If this method returns True, the associated method has been executed.
+        """
         key_fn = self._keymap[keychords]
         if key_fn is None:
             return None
