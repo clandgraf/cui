@@ -79,11 +79,12 @@ class Window(object):
 
 
 class WindowManager(object):
-    def __init__(self, core, stdscr):
+    def __init__(self, core, screen):
         """Foobah"""
-        self.core = core
+        self._core = core
 
-        self._root = self._init_root(stdscr)
+        self._screen = screen
+        self._root = self._init_root(screen)
         self._active_window = self._root
 
     def _init_root(self, stdscr):
@@ -92,18 +93,21 @@ class WindowManager(object):
         return {
             'wm_type':    'window',
             'dimensions': dimensions,
-            'content':    Window(self.core, self.core._buffers[0], dimensions),
+            'content':    Window(self._core, self._core._buffers[0], dimensions),
             'parent':     None
         }
 
-    def windows(self):
+    def windows(self, yield_window=True, yield_rsplit=False):
         win_stack = [self._root]
         while win_stack:
             w = win_stack.pop(0)
             if w['wm_type'] == 'window':
-                yield w
+                if yield_window:
+                    yield w
             else:
                 win_stack[0:0] = w['content'] # extend at front
+                if yield_rsplit and w['wm_type'] == 'rsplit':
+                    yield w
 
     def window_list(self):
         return list(self.windows())
@@ -168,7 +172,7 @@ class WindowManager(object):
         w2 = {
             'wm_type':    'window',
             'dimensions': d2,
-            'content':    Window(self.core, self._active_window['content'].buffer(), d2),
+            'content':    Window(self._core, self._active_window['content'].buffer(), d2),
             'parent':     self._active_window
         }
         self._active_window['wm_type'] = split_type
@@ -195,8 +199,7 @@ class WindowManager(object):
         parent['content'] = new_parent_content['content']
         self._resize_window_tree(parent)
         # FIXME this is not optimal
-        self._active_window = None
-        self._active_window = self.select_next_window()
+        self._active_window = self.windows().next()
 
     def _resize_window_tree(self, window):
         if window['wm_type'] == 'window':
@@ -208,7 +211,18 @@ class WindowManager(object):
             window['content'][1]['dimensions'] = d2
             self._resize_window_tree(window['content'][1])
 
+    def _render_rsplit(self, w):
+        col = w['dimensions'][3] + w['content'][0]['dimensions'][1]
+        row = w['dimensions'][2]
+        for r in range(0, w['dimensions'][0]):
+            self._screen.addch(row + r, col, ord('|'),
+                               curses.color_pair(self._core.get_index_for_type('default',
+                                                                               'default')))
+
     def render(self):
+        for w in self.windows(yield_window=False, yield_rsplit=True):
+            self._render_rsplit(w)
+        self._screen.noutrefresh()
         for w in self.windows():
             w['content'].render(w == self._active_window)
 
@@ -228,8 +242,8 @@ def _init_state(core):
 
 
 def log_windows(core):
-    for w in list(core._wm.windows()):
-        core.logger.log(str(w))
+    core.logger.log(str(core._wm._active_window['dimensions']))
+
 
 class Core(WithKeymap, ColorCore):
     __init_functions__ = []
@@ -331,8 +345,7 @@ class Core(WithKeymap, ColorCore):
         curses.endwin()
 
     def _update_ui(self):
-        self._render_mini_buffer()
-        self._screen.noutrefresh()
+        self._render_mini_buffer() # This relies on noutrefresh called in _wm.render
         self._wm.render()
         curses.doupdate()
 
