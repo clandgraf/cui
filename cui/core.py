@@ -8,6 +8,7 @@ from cui.cui_input import read_keychord
 from cui.logger import Logger
 from cui.cui_keymap import WithKeymap
 from cui.util import deep_get, deep_put
+from cui.colors import ColorCore
 
 READ_TIMEOUT = 100
 
@@ -16,7 +17,8 @@ __all__ = ['init_func', 'Core']
 
 
 class Window(object):
-    def __init__(self, displayed_buffer, dimensions):
+    def __init__(self, core, displayed_buffer, dimensions):
+        self._core = core
         self._internal_dimensions = dimensions
         self._handle = curses.newwin(*self._internal_dimensions)
         self._buffer = displayed_buffer
@@ -27,8 +29,13 @@ class Window(object):
                            dimensions[3])
 
     def update_dimensions(self, dimensions):
-        self.dimensions = dimensions
-        self._handle.resize(*self.dimensions)
+        self._internal_dimensions = dimensions
+        self._handle.resize(*dimensions[:2])
+        self._handle.mvwin(*dimensions[2:])
+        self.dimensions = (dimensions[0] - 1,
+                           dimensions[1],
+                           dimensions[2],
+                           dimensions[3])
         return self
 
     def set_buffer(self, displayed_buffer):
@@ -37,17 +44,22 @@ class Window(object):
     def buffer(self):
         return self._buffer
 
-    def add_string(self, row, col, string,
-                   foreground=curses.COLOR_WHITE,
-                   background=curses.COLOR_BLACK):
+    def add_string(self, row, col, string, foreground=None, background='default', attributes=0):
+        if foreground is None:
+            foreground = self._core.get_foreground_color('default')
         self._handle.addstr(row, col, string,
-                            curses.color_pair(background << 3 | foreground))
+                            attributes |
+                            curses.color_pair(self._core.get_index_for_color(foreground,
+                                                                             background)))
 
-    def _render_mode_line(self):
+    def _render_mode_line(self, is_active):
         bname = self._buffer.buffer_name()
         mline = ('  %s' + (' ' * (self.dimensions[1] - len(bname) - 3))) % bname
+        style = 'modeline_active' if is_active else 'modeline_inactive'
         self.add_string(self.dimensions[0], 0, mline,
-                        curses.COLOR_BLACK, curses.COLOR_WHITE)
+                        self._core.get_foreground_color(style),
+                        style,
+                        curses.A_BOLD)
 
     def _render_buffer(self):
         self._handle.move(0, 0)
@@ -57,9 +69,9 @@ class Window(object):
             self.add_string(idx, 0, row)
         self._handle.clrtobot()
 
-    def render(self):
+    def render(self, is_active):
         self._render_buffer()
-        self._render_mode_line()
+        self._render_mode_line(is_active)
         self._handle.noutrefresh()
 
 
@@ -77,7 +89,7 @@ class WindowManager(object):
         return {
             'wm_type':    'window',
             'dimensions': dimensions,
-            'content':    Window(self.core._buffers[0], dimensions),
+            'content':    Window(self.core, self.core._buffers[0], dimensions),
             'parent':     None
         }
 
@@ -85,14 +97,14 @@ class WindowManager(object):
         return self._active_window['content']
 
     def split_window_below(self):
-        top_dimensions = (math.ceil(self._active_window['dimensions'][0] / 2.0),
+        top_dimensions = (int(math.ceil(self._active_window['dimensions'][0] / 2.0)),
                           self._active_window['dimensions'][1],
                           self._active_window['dimensions'][2],
                           self._active_window['dimensions'][3])
-        bot_dimensions = (math.floor(self._active_window['dimensions'][0] / 2.0),
+        bot_dimensions = (int(math.floor(self._active_window['dimensions'][0] / 2.0)),
                           self._active_window['dimensions'][1],
                           self._active_window['dimensions'][2] +
-                          math.ceil(self._active_window['dimensions'][0] / 2.0),
+                          int(math.ceil(self._active_window['dimensions'][0] / 2.0)),
                           self._active_window['dimensions'][3])
         top = {
             'wm_type':    self._active_window['wm_type'],
@@ -103,7 +115,7 @@ class WindowManager(object):
         bot = {
             'wm_type':    'window',
             'dimensions': bot_dimensions,
-            'content':    Window(self._active_window['content'].buffer, bot_dimensions),
+            'content':    Window(self.core, self._active_window['content'].buffer(), bot_dimensions),
             'parent':     self._active_window
         }
         self._active_window['wm_type'] = 'bsplit'
@@ -115,7 +127,7 @@ class WindowManager(object):
         while win_stack:
             w = win_stack.pop()
             if w['wm_type'] == 'window':
-                w['content'].render()
+                w['content'].render(w == self._active_window)
             else:
                 win_stack.extend(w['content'])
 
@@ -130,11 +142,16 @@ def update_func(fn):
     return fn
 
 
-class Core(WithKeymap):
+def _init_state(core):
+    core.set_state('tab-stop', 4)
+
+
+class Core(WithKeymap, ColorCore):
     __init_functions__ = []
     __update_functions__ = []
     __keymap__ = {
         "C-x C-c": lambda core: core.quit(),
+        "C-x 2":   lambda core: core._wm.split_window_below(),
         "C-i":     lambda core: core.next_buffer()
     }
 
@@ -151,6 +168,7 @@ class Core(WithKeymap):
         self._running = False
         self._wm = None
         atexit.register(self._at_exit)
+        _init_state(self)
 
     def switch_buffer(self, buffer_class, *args):
         buffer_name = buffer_class.name(*args)
@@ -213,14 +231,8 @@ class Core(WithKeymap):
 
         # Init Colors
         curses.start_color()
-        for fg in range(0, curses.COLORS):
-            for bg in range(0, curses.COLORS):
-                idx = bg << 3 | fg
-                if idx == 0:
-                    continue
-                curses.init_pair(idx, fg, bg)
-        self._screen.bkgd(curses.color_pair(curses.COLOR_BLACK << 3 |
-                                            curses.COLOR_WHITE))
+        self._init_colors()
+        self._screen.bkgd(self.get_index_for_type())
         self._screen.refresh()
         self.add_exit_handler(self._quit_curses)
         self._wm = WindowManager(self, self._screen)
@@ -230,8 +242,9 @@ class Core(WithKeymap):
         curses.endwin()
 
     def _update_ui(self):
-        self._wm.render()
         self._render_mini_buffer()
+        self._screen.noutrefresh()
+        self._wm.render()
         curses.doupdate()
 
     def _update_packages(self):

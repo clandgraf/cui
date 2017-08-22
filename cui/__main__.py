@@ -1,16 +1,15 @@
 import imp
 import traceback
 
-from cui import cui_core
+from cui import core
 
 def main():
     cui_init = imp.load_source('cui.init', './init.py')
-    core = cui_core.Core(cui_init)
-    core.set_state('tab-stop', 4)
+    c = core.Core(cui_init)
     try:
-        core.run()
+        c.run()
     except:
-        core.logger.log(traceback.format_exc())
+        c.logger.log(traceback.format_exc())
 
 if __name__ == '__main__':
     main()
