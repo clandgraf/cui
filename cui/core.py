@@ -74,6 +74,9 @@ class Window(object):
         self._render_mode_line(is_active)
         self._handle.noutrefresh()
 
+    def __str__(self):
+        return "#<window \"%s\">" % self._buffer.buffer_name()
+
 
 class WindowManager(object):
     def __init__(self, core, stdscr):
@@ -93,19 +96,47 @@ class WindowManager(object):
             'parent':     None
         }
 
+    def windows(self):
+        win_stack = [self._root]
+        while win_stack:
+            w = win_stack.pop()
+            if w['wm_type'] == 'window':
+                yield w
+            else:
+                win_stack.extend(w['content'])
+
+    def window_list(self):
+        return list(self.windows())
+
     def current_window(self):
         return self._active_window['content']
 
+    def next_window(self):
+        windows = self.windows()
+        first_window = current_window = windows.next()
+        try:
+            while current_window != self._active_window:
+                current_window = windows.next()
+            self._active_window = windows.next()
+        except StopIteration:
+            self._active_window = first_window
+
+    def _get_vertical_dimensions(self, parent_dimension):
+        # TODO ratio
+        return (
+            (int(math.ceil(parent_dimension[0] / 2.0)),
+             parent_dimension[1],
+             parent_dimension[2],
+             parent_dimension[3]),
+            (int(math.floor(parent_dimension[0] / 2.0)),
+             parent_dimension[1],
+             parent_dimension[2] +
+             int(math.ceil(parent_dimension[0] / 2.0)),
+             parent_dimension[3])
+        )
+
     def split_window_below(self):
-        top_dimensions = (int(math.ceil(self._active_window['dimensions'][0] / 2.0)),
-                          self._active_window['dimensions'][1],
-                          self._active_window['dimensions'][2],
-                          self._active_window['dimensions'][3])
-        bot_dimensions = (int(math.floor(self._active_window['dimensions'][0] / 2.0)),
-                          self._active_window['dimensions'][1],
-                          self._active_window['dimensions'][2] +
-                          int(math.ceil(self._active_window['dimensions'][0] / 2.0)),
-                          self._active_window['dimensions'][3])
+        top_dimensions, bot_dimensions = self._get_vertical_dimensions(self._active_window['dimensions'])
         top = {
             'wm_type':    self._active_window['wm_type'],
             'dimensions': top_dimensions,
@@ -122,14 +153,36 @@ class WindowManager(object):
         self._active_window['content'] = [top, bot]
         self._active_window = top
 
+    def delete_current_window(self):
+        # Do not delete last window
+        if self._root == self._active_window:
+            return
+
+        parent = self._active_window['parent']
+        new_parent_content = parent['content'][1] \
+                             if parent['content'][0] == self._active_window else \
+                             parent['content'][0]
+
+        parent['wm_type'] = new_parent_content['wm_type']
+        parent['content'] = new_parent_content['content']
+        self._resize_window_tree(parent)
+        self._active_window = parent
+
+    def _resize_window_tree(self, window):
+        if window['wm_type'] == 'bsplit':
+            top_dimensions, bot_dimensions = self._get_vertical_dimensions(window['dimensions'])
+            window['content'][0]['dimensions'] = top_dimensions
+            self._resize_window_tree(window['content'][0])
+            window['content'][1]['dimensions'] = bot_dimensions
+            self._resize_window_tree(window['content'][1])
+        elif window['wm_type'] == 'rsplit':
+            pass
+        else:
+            window['content'].update_dimensions(window['dimensions'])
+
     def render(self):
-        win_stack = [self._root]
-        while win_stack:
-            w = win_stack.pop()
-            if w['wm_type'] == 'window':
-                w['content'].render(w == self._active_window)
-            else:
-                win_stack.extend(w['content'])
+        for w in self.windows():
+            w['content'].render(w == self._active_window)
 
 
 def init_func(fn):
@@ -152,6 +205,8 @@ class Core(WithKeymap, ColorCore):
     __keymap__ = {
         "C-x C-c": lambda core: core.quit(),
         "C-x 2":   lambda core: core._wm.split_window_below(),
+        "C-x 0":   lambda core: core._wm.delete_current_window(),
+        "C-x o":   lambda core: core._wm.next_window(),
         "C-i":     lambda core: core.next_buffer()
     }
 
