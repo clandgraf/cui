@@ -88,7 +88,7 @@ class WindowManager(object):
 
     def _init_root(self, stdscr):
         max_y, max_x = stdscr.getmaxyx()
-        dimensions = (max_y - 1, max_x - 1, 0, 0)
+        dimensions = (max_y - 1, max_x, 0, 0)
         return {
             'wm_type':    'window',
             'dimensions': dimensions,
@@ -103,6 +103,7 @@ class WindowManager(object):
             if w['wm_type'] == 'window':
                 yield w
             else:
+                # TODO wrong order. Should be inserted at front
                 win_stack.extend(w['content'])
 
     def window_list(self):
@@ -117,9 +118,12 @@ class WindowManager(object):
         try:
             while current_window != self._active_window:
                 current_window = windows.next()
-            self._active_window = windows.next()
+            return windows.next()
         except StopIteration:
-            self._active_window = first_window
+            return first_window
+
+    def select_next_window(self):
+        self._active_window = self.next_window()
 
     def _get_vertical_dimensions(self, parent_dimension):
         # TODO ratio
@@ -135,29 +139,55 @@ class WindowManager(object):
              parent_dimension[3])
         )
 
-    def split_window_below(self):
-        top_dimensions, bot_dimensions = self._get_vertical_dimensions(self._active_window['dimensions'])
-        top = {
+    def _get_horizontal_dimensions(self, parent_dimension):
+        # TODO ratio
+        return (
+            (parent_dimension[0],
+             int(math.floor(parent_dimension[1] * .5)),
+             parent_dimension[2],
+             parent_dimension[3]),
+            (parent_dimension[0],
+             int(math.ceil(parent_dimension[1] * .5)) - 1,
+             parent_dimension[2],
+             parent_dimension[3] +
+             int(math.floor(parent_dimension[1] * .5)) + 1)
+        )
+
+    def _get_dimensions(self, split_type, parent_dimension):
+        return (self._get_vertical_dimensions
+                if split_type == 'bsplit' else
+                self._get_horizontal_dimensions)(parent_dimension)
+
+    def _split_window(self, split_type):
+        d1, d2 = self._get_dimensions(split_type, self._active_window['dimensions'])
+        w1 = {
             'wm_type':    self._active_window['wm_type'],
-            'dimensions': top_dimensions,
-            'content':    self._active_window['content'].update_dimensions(top_dimensions),
+            'dimensions': d1,
+            'content':    self._active_window['content'].update_dimensions(d1),
             'parent':     self._active_window
         }
-        bot = {
+        w2 = {
             'wm_type':    'window',
-            'dimensions': bot_dimensions,
-            'content':    Window(self.core, self._active_window['content'].buffer(), bot_dimensions),
+            'dimensions': d2,
+            'content':    Window(self.core, self._active_window['content'].buffer(), d2),
             'parent':     self._active_window
         }
-        self._active_window['wm_type'] = 'bsplit'
-        self._active_window['content'] = [top, bot]
-        self._active_window = top
+        self._active_window['wm_type'] = split_type
+        self._active_window['content'] = [w1, w2]
+        self._active_window = w1
+
+    def split_window_below(self):
+        self._split_window('bsplit')
+
+    def split_window_right(self):
+        self._split_window('rsplit')
 
     def delete_current_window(self):
         # Do not delete last window
         if self._root == self._active_window:
             return
 
+        next_window = self.next_window()
         parent = self._active_window['parent']
         new_parent_content = parent['content'][1] \
                              if parent['content'][0] == self._active_window else \
@@ -166,19 +196,18 @@ class WindowManager(object):
         parent['wm_type'] = new_parent_content['wm_type']
         parent['content'] = new_parent_content['content']
         self._resize_window_tree(parent)
-        self._active_window = parent
+        # FIXME this does not work
+        self._active_window = next_window
 
     def _resize_window_tree(self, window):
-        if window['wm_type'] == 'bsplit':
-            top_dimensions, bot_dimensions = self._get_vertical_dimensions(window['dimensions'])
-            window['content'][0]['dimensions'] = top_dimensions
-            self._resize_window_tree(window['content'][0])
-            window['content'][1]['dimensions'] = bot_dimensions
-            self._resize_window_tree(window['content'][1])
-        elif window['wm_type'] == 'rsplit':
-            pass
-        else:
+        if window['wm_type'] == 'window':
             window['content'].update_dimensions(window['dimensions'])
+        else:
+            d1, d2 = self._get_dimensions(window['wm_type'], window['dimensions'])
+            window['content'][0]['dimensions'] = d1
+            self._resize_window_tree(window['content'][0])
+            window['content'][1]['dimensions'] = d2
+            self._resize_window_tree(window['content'][1])
 
     def render(self):
         for w in self.windows():
@@ -205,8 +234,9 @@ class Core(WithKeymap, ColorCore):
     __keymap__ = {
         "C-x C-c": lambda core: core.quit(),
         "C-x 2":   lambda core: core._wm.split_window_below(),
+        "C-x 3":   lambda core: core._wm.split_window_right(),
         "C-x 0":   lambda core: core._wm.delete_current_window(),
-        "C-x o":   lambda core: core._wm.next_window(),
+        "C-x o":   lambda core: core._wm.select_next_window(),
         "C-i":     lambda core: core.next_buffer()
     }
 
