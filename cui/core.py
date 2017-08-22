@@ -99,12 +99,11 @@ class WindowManager(object):
     def windows(self):
         win_stack = [self._root]
         while win_stack:
-            w = win_stack.pop()
+            w = win_stack.pop(0)
             if w['wm_type'] == 'window':
                 yield w
             else:
-                # TODO wrong order. Should be inserted at front
-                win_stack.extend(w['content'])
+                win_stack[0:0] = w['content'] # extend at front
 
     def window_list(self):
         return list(self.windows())
@@ -187,7 +186,6 @@ class WindowManager(object):
         if self._root == self._active_window:
             return
 
-        next_window = self.next_window()
         parent = self._active_window['parent']
         new_parent_content = parent['content'][1] \
                              if parent['content'][0] == self._active_window else \
@@ -196,8 +194,9 @@ class WindowManager(object):
         parent['wm_type'] = new_parent_content['wm_type']
         parent['content'] = new_parent_content['content']
         self._resize_window_tree(parent)
-        # FIXME this does not work
-        self._active_window = next_window
+        # FIXME this is not optimal
+        self._active_window = None
+        self._active_window = self.select_next_window()
 
     def _resize_window_tree(self, window):
         if window['wm_type'] == 'window':
@@ -228,6 +227,10 @@ def _init_state(core):
     core.set_state('tab-stop', 4)
 
 
+def log_windows(core):
+    for w in list(core._wm.windows()):
+        core.logger.log(str(w))
+
 class Core(WithKeymap, ColorCore):
     __init_functions__ = []
     __update_functions__ = []
@@ -237,7 +240,8 @@ class Core(WithKeymap, ColorCore):
         "C-x 3":   lambda core: core._wm.split_window_right(),
         "C-x 0":   lambda core: core._wm.delete_current_window(),
         "C-x o":   lambda core: core._wm.select_next_window(),
-        "C-i":     lambda core: core.next_buffer()
+        "C-i":     lambda core: core.next_buffer(),
+        "C-w":     log_windows
     }
 
     def __init__(self, cui_init):
@@ -373,6 +377,7 @@ class Core(WithKeymap, ColorCore):
                 except:
                     self.logger.log(traceback.format_exc())
                     self._current_keychord = []
+                    raise
 
             self._update_ui()
         self._run_exit_handlers()
