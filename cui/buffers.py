@@ -31,11 +31,11 @@ class ListBuffer(Buffer):
 
     def __init__(self, core, *args):
         super(ListBuffer, self).__init__(core, *args)
-        self.item_height = 2
+        self.item_height = 1
         self.selected_item = 0
 
     def _prepare_item(self, index, num_cols):
-        soft_tabs = ' ' * self.core.state('tab-stop')
+        soft_tabs = ' ' * self.core.state(['tab-stop'])
         return map(lambda l: l.replace('\t', soft_tabs)[:num_cols],
                    self.render_item(index)
                        .split('\n', self.item_height)[:self.item_height])

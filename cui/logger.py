@@ -5,3 +5,6 @@ class Logger(object):
 
     def log(self, msg):
         self.messages.append(msg)
+
+    def clear(self):
+        self.messages = []

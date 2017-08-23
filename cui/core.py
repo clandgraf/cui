@@ -3,17 +3,19 @@ import curses
 import traceback
 import math
 
-from cui.cui_buffers import LogBuffer
+from cui.buffers import LogBuffer
 from cui.cui_input import read_keychord
 from cui.logger import Logger
 from cui.cui_keymap import WithKeymap
 from cui.util import deep_get, deep_put
 from cui.colors import ColorCore
 
+__all__ = ['init_func', 'Core']
+
 READ_TIMEOUT = 100
 
-
-__all__ = ['init_func', 'Core']
+MIN_WINDOW_HEIGHT = 4
+MIN_WINDOW_WIDTH  = 20
 
 
 class Window(object):
@@ -54,12 +56,13 @@ class Window(object):
 
     def _render_mode_line(self, is_active):
         bname = self._buffer.buffer_name()
-        mline = ('  %s' + (' ' * (self.dimensions[1] - len(bname) - 3))) % bname
+        mline = ('  %s' + (' ' * (self.dimensions[1] - len(bname) - 2))) % bname
         style = 'modeline_active' if is_active else 'modeline_inactive'
-        self.add_string(self.dimensions[0], 0, mline,
-                        self._core.get_foreground_color(style),
-                        style,
-                        curses.A_BOLD)
+        attr  = curses.color_pair(self._core.get_index_for_color(
+            self._core.get_foreground_color(style),
+            style
+        )) | curses.A_BOLD
+        self._handle.insstr(self.dimensions[0], 0, mline, attr)
 
     def _render_buffer(self):
         self._handle.move(0, 0)
@@ -67,6 +70,7 @@ class Window(object):
                                                          self.dimensions[0],
                                                          self.dimensions[1])):
             self.add_string(idx, 0, row)
+            self._handle.clrtoeol()
         self._handle.clrtobot()
 
     def render(self, is_active):
@@ -75,7 +79,8 @@ class Window(object):
         self._handle.noutrefresh()
 
     def __str__(self):
-        return "#<window \"%s\">" % self._buffer.buffer_name()
+        return ("#<window \"%s\" dimensions=%s>"
+                % (self._buffer.buffer_name(), str(self._internal_dimensions)))
 
 
 class WindowManager(object):
@@ -117,8 +122,9 @@ class WindowManager(object):
 
     def next_window(self):
         windows = self.windows()
-        first_window = current_window = windows.next()
+        first_window = None
         try:
+            first_window = current_window = windows.next()
             while current_window != self._active_window:
                 current_window = windows.next()
             return windows.next()
@@ -161,8 +167,15 @@ class WindowManager(object):
                 if split_type == 'bsplit' else
                 self._get_horizontal_dimensions)(parent_dimension)
 
+    def _check_dimension(self, d):
+        return d[0] < MIN_WINDOW_HEIGHT or d[1] < MIN_WINDOW_WIDTH
+
     def _split_window(self, split_type):
         d1, d2 = self._get_dimensions(split_type, self._active_window['dimensions'])
+        if self._check_dimension(d1) or self._check_dimension(d2):
+            self._core.message("Can not split. Dimensions too small.")
+            return
+
         w1 = {
             'wm_type':    self._active_window['wm_type'],
             'dimensions': d1,
@@ -177,6 +190,12 @@ class WindowManager(object):
         }
         self._active_window['wm_type'] = split_type
         self._active_window['content'] = [w1, w2]
+
+        assert(w1['parent'] == self._active_window)
+        assert(w1['parent']['content'][0] == w1)
+        assert(w2['parent'] == self._active_window)
+        assert(w2['parent']['content'][1] == w2)
+
         self._active_window = w1
 
     def split_window_below(self):
@@ -188,6 +207,7 @@ class WindowManager(object):
     def delete_current_window(self):
         # Do not delete last window
         if self._root == self._active_window:
+            self._core.message("Can not delete last window.")
             return
 
         parent = self._active_window['parent']
@@ -197,7 +217,11 @@ class WindowManager(object):
 
         parent['wm_type'] = new_parent_content['wm_type']
         parent['content'] = new_parent_content['content']
+        if parent['wm_type'] != 'window':
+            parent['content'][0]['parent'] = parent
+            parent['content'][1]['parent'] = parent
         self._resize_window_tree(parent)
+
         # FIXME this is not optimal
         self._active_window = self.windows().next()
 
@@ -238,11 +262,25 @@ def update_func(fn):
 
 
 def _init_state(core):
-    core.set_state('tab-stop', 4)
+    core.set_state(['tab-stop'], 4)
+    core.set_state(['core', 'read-timeout'], READ_TIMEOUT)
+
+
+def log_window(core, w, depth=0):
+    core.logger.log('%s%s%s' % ('> ' if w == core._wm._active_window else '  ',
+                                '  ' * depth,
+                                (w['content']
+                                 if w['wm_type'] == 'window' else
+                                 "#<%s dimensions=%s>"
+                                 % (w['wm_type'], w['dimensions']))))
+    if w['wm_type'] != 'window':
+        log_window(core, w['content'][0], depth=depth + 1)
+        log_window(core, w['content'][1], depth=depth + 1)
 
 
 def log_windows(core):
-    core.logger.log(str(core._wm._active_window['dimensions']))
+    core.logger.clear()
+    log_window(core, core._wm._root)
 
 
 class Core(WithKeymap, ColorCore):
@@ -272,6 +310,9 @@ class Core(WithKeymap, ColorCore):
         self._wm = None
         atexit.register(self._at_exit)
         _init_state(self)
+
+    def message(self, msg):
+        self._mini_buffer = msg
 
     def switch_buffer(self, buffer_class, *args):
         buffer_name = buffer_class.name(*args)
@@ -330,7 +371,7 @@ class Core(WithKeymap, ColorCore):
         curses.noecho()
         curses.curs_set(0)
         self._screen.keypad(1)
-        self._screen.timeout(READ_TIMEOUT)
+        self._screen.timeout(self.state(['core', 'read-timeout']))
 
         # Init Colors
         curses.start_color()
@@ -373,7 +414,7 @@ class Core(WithKeymap, ColorCore):
         while self._running:
             self._update_packages()
 
-            kc = read_keychord(self._screen)
+            kc = read_keychord(self._screen, self.state(['core', 'read-timeout']))
             if kc is not None:
                 try:
                     self._current_keychord.append(kc)

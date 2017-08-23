@@ -55,7 +55,7 @@ def translate_keyname(keyname, meta=False):
     return KEYNAME_MAP.get(keyname, keyname.lower())
 
 
-def read_keychord(screen):
+def read_keychord(screen, timeout):
     key = screen.getch()
     if key == -1:
         return None
@@ -68,6 +68,6 @@ def read_keychord(screen):
             else:
                 return translate_keyname(curses.keyname(key), meta=True)
         finally:
-            screen.timeout(100)
+            screen.timeout(timeout)
     else:
         return translate_keyname(curses.keyname(key))
