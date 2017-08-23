@@ -11,3 +11,4 @@ def initialize(core):
     core.def_foreground('modeline_inactive', 'magenta')
     core.def_background('modeline_active',   'light_grey')
     core.def_background('modeline_inactive', 'dark_grey')
+    core.def_background('selection',         'dark_grey')

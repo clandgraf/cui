@@ -45,6 +45,8 @@ def color_pair_from_type(fg_type='default', bg_type='default'):
 
 
 class ColorCore(object):
+    # TODO reset colors on exit
+
     def _init_colors(self):
         for bg_entry in BGCOL_MAP.values():
             self._init_background(bg_entry)

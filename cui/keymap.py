@@ -73,14 +73,10 @@ class WithKeymap(object):
     def __init__(self):
         self._keymap = Keymap({}, self.__class__)
 
-    def handle_input(self, keychords):
-        """Handling input from cui.input.
-        A return value is None means the received keychord prefix has no match in
-        this handler, and should be directed to the next handler.
-        If this method returns False, a prefix match is found, but the keychord is
-        not yet complete.
-        If this method returns True, the associated method has been executed.
-        """
+    def input_delegate(self):
+        return None
+
+    def _handle_input(self, keychords):
         key_fn = self._keymap[keychords]
         if key_fn is None:
             return None
@@ -89,3 +85,20 @@ class WithKeymap(object):
         else:
             key_fn(self)
             return True
+
+    def handle_input(self, keychords):
+        """Handling input from cui.input.
+        A return value is None means the received keychord prefix has no match in
+        this handler, and should be directed to the next handler.
+        If this method returns False, a prefix match is found, but the keychord is
+        not yet complete.
+        If this method returns True, the associated method has been executed.
+        """
+        is_keychord_handled = None
+        delegate = self.input_delegate()
+        if delegate:
+            is_keychord_handled = delegate.handle_input(keychords)
+        if is_keychord_handled is None:
+            is_keychord_handled = self._handle_input(keychords)
+
+        return is_keychord_handled

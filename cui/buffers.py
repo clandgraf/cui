@@ -1,7 +1,7 @@
 import curses
 
 from cui.util import get_base_classes
-from cui.cui_keymap import WithKeymap
+from cui.keymap import WithKeymap
 
 
 class Buffer(WithKeymap):
@@ -18,6 +18,9 @@ class Buffer(WithKeymap):
 
     def buffer_name(self):
         return self.name(*self.args)
+
+    def line_count(self):
+        pass
 
     def get_lines(self, first_row, num_rows, num_cols):
         pass
@@ -40,10 +43,13 @@ class ListBuffer(Buffer):
                    self.render_item(index)
                        .split('\n', self.item_height)[:self.item_height])
 
+    def line_count(self):
+        return self.item_count() * self.item_height
+
     def get_lines(self, first_row, num_rows, num_cols):
         item = None
-        for row_index in range(first_row, min(self.item_count() * self.item_height,
-                                              num_rows)):
+        for row_index in range(first_row, min(self.line_count(),
+                                              num_rows + first_row)):
             item_index = row_index // self.item_height
             line_index = row_index % self.item_height
             if item is None or line_index == 0:
