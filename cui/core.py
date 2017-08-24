@@ -3,8 +3,8 @@ import curses
 import traceback
 import math
 
+from cui import keyreader
 from cui.buffers import LogBuffer
-from cui.cui_input import read_keychord
 from cui.logger import Logger
 from cui.keymap import WithKeymap
 from cui.util import deep_get, deep_put
@@ -174,9 +174,6 @@ class Core(WithKeymap, ColorCore):
     def quit(self):
         self._running = False
 
-    def handle_input(self, keychords):
-        return super(Core, self).handle_input(keychords)
-
     def input_delegate(self):
         return self._wm.current_window().buffer()
 
@@ -188,21 +185,24 @@ class Core(WithKeymap, ColorCore):
         while self._running:
             self._update_packages()
 
-            kc = read_keychord(self._screen, self.state(['core', 'read-timeout']))
+            kc = keyreader.read_keychord(self._screen,
+                                         self.state(['core', 'read-timeout']))
             if kc is not None:
-                try:
-                    self._current_keychord.append(kc)
-                    self._mini_buffer = ' '.join(self._current_keychord)
-                    is_keychord_handled = self.handle_input(self._current_keychord)
-                    if is_keychord_handled:
+                if kc == keyreader.EVT_RESIZE:
+                    self._wm.resize()
+                else:
+                    try:
+                        self._current_keychord.append(kc)
+                        self._mini_buffer = ' '.join(self._current_keychord)
+                        is_keychord_handled = self.handle_input(self._current_keychord)
+                        if is_keychord_handled:
+                            self._current_keychord = []
+                        elif is_keychord_handled is None:
+                            self._mini_buffer = 'Unknown keychord: %s' % ' '.join(self._current_keychord)
+                            self._current_keychord = []
+                    except:
+                        self.logger.log(traceback.format_exc())
                         self._current_keychord = []
-                    elif is_keychord_handled is None:
-                        self._mini_buffer = 'Unknown keychord: %s' % ' '.join(self._current_keychord)
-                        self._current_keychord = []
-                except:
-                    self.logger.log(traceback.format_exc())
-                    self._current_keychord = []
-                    raise
 
             self._update_ui()
         self._run_exit_handlers()

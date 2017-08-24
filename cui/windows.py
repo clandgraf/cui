@@ -85,11 +85,11 @@ class WindowManager(object):
         self._core = core
 
         self._screen = screen
-        self._root = self._init_root(screen)
+        self._root = self._init_root()
         self._active_window = self._root
 
-    def _init_root(self, stdscr):
-        max_y, max_x = stdscr.getmaxyx()
+    def _init_root(self):
+        max_y, max_x = self._screen.getmaxyx()
         dimensions = (max_y - 1, max_x, 0, 0)
         return {
             'wm_type':    'window',
@@ -97,6 +97,11 @@ class WindowManager(object):
             'content':    Window(self._core, self._core._buffers[0], dimensions),
             'parent':     None
         }
+
+    def resize(self):
+        max_y, max_x = self._screen.getmaxyx()
+        self._root['dimensions'] = (max_y - 1, max_x, 0, 0)
+        self._resize_window_tree(self._root)
 
     def windows(self, yield_window=True, yield_rsplit=False):
         win_stack = [self._root]

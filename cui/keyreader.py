@@ -1,6 +1,8 @@
 import curses
 import re
 
+EVT_RESIZE = 'key_resize'
+
 KEYNAME_MAP = {
     'KEY_UP':     '<up>',
     'KEY_SR':     'S-<up>',
