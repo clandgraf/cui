@@ -23,7 +23,7 @@ def parse_key(k):
 
 
 def normalize_modifiers(ms):
-    unknown_modifiers = filter(lambda m: m not in modifiers, ms)
+    unknown_modifiers = list(filter(lambda m: m not in modifiers, ms))
     if unknown_modifiers:
         raise KeyError('Encountered unknown modifiers: %s' % unknown_modifiers)
 
@@ -41,6 +41,7 @@ class Keymap(object):
     def __getitem__(self, keychords):
         fn = deep_get(self._keymap, keychords)
         if fn is None and self.super_:
+
             fn = self.super_.__keymap__[keychords]
         return fn
 
@@ -56,7 +57,7 @@ class WithKeymapMeta(type):
         """Convert a keymap specified as a dictionary to a Keymap object.
         """
         # Find base with keymap
-        keymap_bases = filter(lambda base: isinstance(base, WithKeymapMeta), bases)
+        keymap_bases = list(filter(lambda base: isinstance(base, WithKeymapMeta), bases))
         if len(keymap_bases) > 1:
             raise TypeError('WithKeymap class should have only one base class with __keymap__')
 
@@ -65,10 +66,10 @@ class WithKeymapMeta(type):
         super(WithKeymapMeta, cls).__init__(name, bases, dct)
 
 
-class WithKeymap(object):
+class WithKeymap(object, metaclass=WithKeymapMeta):
     """Superclass for objects handling keyboard input.
     """
-    __metaclass__ = WithKeymapMeta
+    #__metaclass__ = WithKeymapMeta
 
     def __init__(self):
         self._keymap = Keymap({}, self.__class__)

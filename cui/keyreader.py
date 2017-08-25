@@ -68,8 +68,9 @@ def read_keychord(screen, timeout):
             if key == -1:
                 return '<esc>'
             else:
-                return translate_keyname(curses.keyname(key), meta=True)
+                return translate_keyname(curses.keyname(key).decode('utf-8'),
+                                         meta=True)
         finally:
             screen.timeout(timeout)
     else:
-        return translate_keyname(curses.keyname(key))
+        return translate_keyname(curses.keyname(key).decode('utf-8'))

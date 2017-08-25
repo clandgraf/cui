@@ -1,0 +1,33 @@
+
+
+Function
+
+WindowManager.find_window(predicate(Window):Bool):Window
+
+ --> Return first window that matches predicate
+
+ --> traverse window tree starting with first_window yielding windows
+ --> On search for first window put encountered windows in list and yield these later
+ --> At end yield from list
+
+
+
+Window/Buffer synchronized Variables
+
+
+- Saved in state['win/buf'] in both window and buffer
+
+- If window is selected sync window -> buffer
+- If buffer is switched
+  -> Drop all of windows win/buf variables
+  -> Copy all of new buffers win/buf variables to window
+- Modifying buffer or window values syncs to the other if buffer is displayed in selected window
+- Emacs syncs on deselect from buffer to window (but since all variables are synced when modified)
+  but since we sync directly this should not be necessary
+
+
+- win/buf variables
+
+  point
+  first_row
+  log_stay_on_bottom

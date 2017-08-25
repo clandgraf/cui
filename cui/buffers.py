@@ -39,9 +39,10 @@ class ListBuffer(Buffer):
 
     def _prepare_item(self, index, num_cols):
         soft_tabs = ' ' * self.core.state(['tab-stop'])
-        return map(lambda l: l.replace('\t', soft_tabs)[:num_cols],
-                   self.render_item(index)
-                       .split('\n', self.item_height)[:self.item_height])
+        # XXX python3
+        return list(map(lambda l: l.replace('\t', soft_tabs)[:num_cols],
+                        self.render_item(index)
+                            .split('\n', self.item_height)[:self.item_height]))
 
     def line_count(self):
         return self.item_count() * self.item_height

@@ -86,7 +86,7 @@ class WindowManager(object):
 
         self._screen = screen
         self._root = self._init_root()
-        self._active_window = self._root
+        self._selected_window = self._root
 
     def _init_root(self):
         max_y, max_x = self._screen.getmaxyx()
@@ -103,49 +103,64 @@ class WindowManager(object):
         self._root['dimensions'] = (max_y - 1, max_x, 0, 0)
         self._resize_window_tree(self._root)
 
-    def windows(self, yield_window=True, yield_rsplit=False):
+    def windows(self, first_window=None, yield_window=True, yield_rsplit=False, yield_bsplit=False):
         win_stack = [self._root]
+        win_queue = []
+        at_last = first_window is not None
+
+        def _handle_window(w):
+            if at_last:
+                win_queue.append(w)
+            else:
+                yield w
+
         while win_stack:
             w = win_stack.pop(0)
+
+            if at_last and w == first_window:
+                at_last = False
+
             if w['wm_type'] == 'window':
                 if yield_window:
-                    yield w
+                    yield from _handle_window(w)
             else:
                 win_stack[0:0] = w['content'] # extend at front
                 if yield_rsplit and w['wm_type'] == 'rsplit':
-                    yield w
+                    yield from _handle_window(w)
+                if yield_bsplit and w['wm_type'] == 'bsplit':
+                    yield from _handle_window(w)
+
+        while win_queue:
+            yield win_queue.pop(0)
 
     def window_list(self):
         return list(self.windows())
 
-    def current_window(self):
-        return self._active_window['content']
+    def selected_window(self):
+        return self._selected_window['content']
 
-    def next_window(self):
-        windows = self.windows()
-        first_window = None
+    def _next_window(self):
         try:
-            first_window = current_window = windows.next()
-            while current_window != self._active_window:
-                current_window = windows.next()
-            return windows.next()
-        except StopIteration:
-            return first_window
+            windows=self.windows(self._selected_window)
+            next(windows)
+            return next(windows)
+        except:
+            return self._selected_window
 
     def select_next_window(self):
-        self._active_window = self.next_window()
+        self._selected_window = self._next_window()
 
     def _get_vertical_dimensions(self, parent_dimension):
         # TODO ratio
         return (
-            (int(math.ceil(parent_dimension[0] / 2.0)),
+            (int(math.ceil(parent_dimension[0] * .5)),
              parent_dimension[1],
              parent_dimension[2],
              parent_dimension[3]),
-            (int(math.floor(parent_dimension[0] / 2.0)),
+            (int(math.floor(parent_dimension[0] * .5)),
              parent_dimension[1],
              parent_dimension[2] +
-             int(math.ceil(parent_dimension[0] / 2.0)),
+             int(math.ceil(parent_dimension[0] * .5)),
              parent_dimension[3])
         )
 
@@ -172,26 +187,26 @@ class WindowManager(object):
         return d[0] < MIN_WINDOW_HEIGHT or d[1] < MIN_WINDOW_WIDTH
 
     def _split_window(self, split_type):
-        d1, d2 = self._get_dimensions(split_type, self._active_window['dimensions'])
+        d1, d2 = self._get_dimensions(split_type, self._selected_window['dimensions'])
         if self._check_dimension(d1) or self._check_dimension(d2):
             self._core.message("Can not split. Dimensions too small.")
             return
 
         w1 = {
-            'wm_type':    self._active_window['wm_type'],
+            'wm_type':    self._selected_window['wm_type'],
             'dimensions': d1,
-            'content':    self._active_window['content'].update_dimensions(d1),
-            'parent':     self._active_window
+            'content':    self._selected_window['content'].update_dimensions(d1),
+            'parent':     self._selected_window
         }
         w2 = {
             'wm_type':    'window',
             'dimensions': d2,
-            'content':    Window(self._core, self._active_window['content'].buffer(), d2),
-            'parent':     self._active_window
+            'content':    Window(self._core, self._selected_window['content'].buffer(), d2),
+            'parent':     self._selected_window
         }
-        self._active_window['wm_type'] = split_type
-        self._active_window['content'] = [w1, w2]
-        self._active_window = w1
+        self._selected_window['wm_type'] = split_type
+        self._selected_window['content'] = [w1, w2]
+        self._selected_window = w1
 
     def split_window_below(self):
         self._split_window('bsplit')
@@ -199,15 +214,15 @@ class WindowManager(object):
     def split_window_right(self):
         self._split_window('rsplit')
 
-    def delete_current_window(self):
+    def delete_selected_window(self):
         # Do not delete last window
-        if self._root == self._active_window:
+        if self._root == self._selected_window:
             self._core.message("Can not delete last window.")
             return
 
-        parent = self._active_window['parent']
+        parent = self._selected_window['parent']
         new_parent_content = parent['content'][1] \
-                             if parent['content'][0] == self._active_window else \
+                             if parent['content'][0] == self._selected_window else \
                              parent['content'][0]
 
         parent['wm_type'] = new_parent_content['wm_type']
@@ -218,7 +233,7 @@ class WindowManager(object):
         self._resize_window_tree(parent)
 
         # FIXME this is not optimal
-        self._active_window = self.windows().next()
+        self._selected_window = next(self.windows())
 
     def _resize_window_tree(self, window):
         if window['wm_type'] == 'window':
@@ -243,4 +258,4 @@ class WindowManager(object):
             self._render_rsplit(w)
         self._screen.noutrefresh()
         for w in self.windows():
-            w['content'].render(w == self._active_window)
+            w['content'].render(w == self._selected_window)

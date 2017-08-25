@@ -32,7 +32,7 @@ def _init_state(core):
 
 
 def log_window(core, w, depth=0):
-    core.logger.log('%s%s%s' % ('> ' if w == core._wm._active_window else '  ',
+    core.logger.log('%s%s%s' % ('> ' if w == core._wm._selected_window else '  ',
                                 '  ' * depth,
                                 (w['content']
                                  if w['wm_type'] == 'window' else
@@ -55,13 +55,13 @@ class Core(WithKeymap, ColorCore):
         "C-x C-c": lambda core: core.quit(),
         "C-x 2":   lambda core: core._wm.split_window_below(),
         "C-x 3":   lambda core: core._wm.split_window_right(),
-        "C-x 0":   lambda core: core._wm.delete_current_window(),
+        "C-x 0":   lambda core: core._wm.delete_selected_window(),
         "C-x o":   lambda core: core._wm.select_next_window(),
         "C-i":     lambda core: core.next_buffer(),
         "C-w":     log_windows,
 
-        '<up>':   lambda core: core._wm.current_window().scroll_up(),
-        '<down>': lambda core: core._wm.current_window().scroll_down()
+        '<up>':   lambda core: core._wm.selected_window().scroll_up(),
+        '<down>': lambda core: core._wm.selected_window().scroll_down()
     }
 
     def __init__(self, cui_init):
@@ -84,24 +84,24 @@ class Core(WithKeymap, ColorCore):
 
     def switch_buffer(self, buffer_class, *args):
         buffer_name = buffer_class.name(*args)
-        buffers = filter(lambda b: b.buffer_name() == buffer_name,
-                         self._buffers)
+        buffers = list(filter(lambda b: b.buffer_name() == buffer_name,  # XXX python3
+                              self._buffers))
         if len(buffers) > 1:
             self.logger.log('Error: multiple buffers with same buffer_name')
             return
         elif len(buffers) == 0:
             self._buffers.insert(0, buffer_class(self, *args))
-            self._wm.current_window().set_buffer(self._buffers[0])
+            self._wm.selected_window().set_buffer(self._buffers[0])
         else:
-            self._wm.current_window().set_buffer(buffers[0])
+            self._wm.selected_window().set_buffer(buffers[0])
 
     def next_buffer(self):
-        w = self._wm.current_window()
+        w = self._wm.selected_window()
         next_index = (self._buffers.index(w.buffer()) + 1) % len(self._buffers)
         w.set_buffer(self._buffers[next_index])
 
     def _current_buffer(self):
-        return self._buffers[self._current_buffer_index]
+        return self._wm.selected_window().buffer()
 
     def state(self, path):
         return deep_get(self._state, path)
@@ -122,7 +122,7 @@ class Core(WithKeymap, ColorCore):
     def _at_exit(self):
         self._run_exit_handlers()
         for log_item in self.logger.messages:
-            print log_item
+            print(log_item)
 
     def _init_packages(self):
         for fn in Core.__init_functions__:
@@ -175,7 +175,7 @@ class Core(WithKeymap, ColorCore):
         self._running = False
 
     def input_delegate(self):
-        return self._wm.current_window().buffer()
+        return self._wm.selected_window().buffer()
 
     def run(self):
         self._init_curses()
