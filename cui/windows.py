@@ -85,16 +85,19 @@ class WindowManager(object):
         self._core = core
 
         self._screen = screen
+        self._windows = {}
         self._root = self._init_root()
         self._selected_window = self._root
 
     def _init_root(self):
         max_y, max_x = self._screen.getmaxyx()
-        dimensions = (max_y - 1, max_x, 0, 0)
+        dim = (max_y - 1, max_x, 0, 0)
+        w = Window(self._core, self._core._buffers[0], dim)
+        self._windows[id(w)] = w
         return {
             'wm_type':    'window',
-            'dimensions': dimensions,
-            'content':    Window(self._core, self._core._buffers[0], dimensions),
+            'dimensions': dim,
+            'content':    w,
             'parent':     None
         }
 
@@ -192,6 +195,9 @@ class WindowManager(object):
             self._core.message("Can not split. Dimensions too small.")
             return
 
+
+        new_win = Window(self._core, self._selected_window['content'].buffer(), d2)
+        self._windows[id(new_win)] = new_win
         w1 = {
             'wm_type':    self._selected_window['wm_type'],
             'dimensions': d1,
@@ -201,7 +207,7 @@ class WindowManager(object):
         w2 = {
             'wm_type':    'window',
             'dimensions': d2,
-            'content':    Window(self._core, self._selected_window['content'].buffer(), d2),
+            'content':    new_win,
             'parent':     self._selected_window
         }
         self._selected_window['wm_type'] = split_type
@@ -219,6 +225,8 @@ class WindowManager(object):
         if self._root == self._selected_window:
             self._core.message("Can not delete last window.")
             return
+
+        del self._windows[id(self._selected_window['content'])]
 
         parent = self._selected_window['parent']
         new_parent_content = parent['content'][1] \

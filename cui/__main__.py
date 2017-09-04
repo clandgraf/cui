@@ -1,11 +1,9 @@
-import imp
 import traceback
 
 from cui import core
 
 def main():
-    cui_init = imp.load_source('cui.init', './init.py')
-    c = core.Core(cui_init)
+    c = core.Core()
     try:
         c.run()
     except:

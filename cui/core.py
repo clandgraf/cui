@@ -1,7 +1,8 @@
 import atexit
 import curses
-import traceback
+import imp
 import math
+import traceback
 
 from cui import keyreader
 from cui.buffers import LogBuffer
@@ -10,6 +11,7 @@ from cui.keymap import WithKeymap
 from cui.util import deep_get, deep_put
 from cui.colors import ColorCore
 from cui.windows import WindowManager
+from cui.singleton import Singleton, combine_meta_classes
 
 __all__ = ['init_func', 'Core']
 
@@ -21,14 +23,19 @@ def init_func(fn):
     return fn
 
 
+def post_init_func(fn):
+    Core.__post_init_functions__.append(fn)
+    return fn
+
+
 def update_func(fn):
     Core.__update_functions__.append(fn)
     return fn
 
 
 def _init_state(core):
-    core.set_state(['tab-stop'], 4)
-    core.set_state(['core', 'read-timeout'], READ_TIMEOUT)
+    core.def_variable(['tab-stop'], 4)
+    core.def_variable(['core', 'read-timeout'], READ_TIMEOUT)
 
 
 def log_window(core, w, depth=0):
@@ -48,9 +55,14 @@ def log_windows(core):
     log_window(core, core._wm._root)
 
 
-class Core(WithKeymap, ColorCore):
+class Core(WithKeymap,
+           ColorCore,
+           metaclass=combine_meta_classes(Singleton, WithKeymap.__class__)):
+
     __init_functions__ = []
+    __post_init_functions__ = []
     __update_functions__ = []
+
     __keymap__ = {
         "C-x C-c": lambda core: core.quit(),
         "C-x 2":   lambda core: core._wm.split_window_below(),
@@ -64,13 +76,12 @@ class Core(WithKeymap, ColorCore):
         '<down>': lambda core: core._wm.selected_window().scroll_down()
     }
 
-    def __init__(self, cui_init):
+    def __init__(self):
         super(Core, self).__init__()
         self.logger = Logger()
-        self._cui_init = cui_init
         self._state = {}
         self._screen = None
-        self._buffers = [LogBuffer(self)]
+        self._buffers = [LogBuffer()]
         self._exit_handlers = []
         self._current_keychord = []
         self._mini_buffer = ""
@@ -90,7 +101,7 @@ class Core(WithKeymap, ColorCore):
             self.logger.log('Error: multiple buffers with same buffer_name')
             return
         elif len(buffers) == 0:
-            self._buffers.insert(0, buffer_class(self, *args))
+            self._buffers.insert(0, buffer_class(*args))
             self._wm.selected_window().set_buffer(self._buffers[0])
         else:
             self._wm.selected_window().set_buffer(buffers[0])
@@ -103,11 +114,14 @@ class Core(WithKeymap, ColorCore):
     def _current_buffer(self):
         return self._wm.selected_window().buffer()
 
-    def state(self, path):
-        return deep_get(self._state, path)
+    def get_variable(self, path):
+        return deep_get(self._state, path, return_none=False)
 
-    def set_state(self, path, value):
-        deep_put(self._state, path, value)
+    def def_variable(self, path, value=None):
+        deep_put(self._state, path, value, create_path=True)
+
+    def set_variable(self, path, value=None):
+        deep_put(self._state, path, value, create_path=False)
 
     def add_exit_handler(self, handler_fn):
         self._exit_handlers.append(handler_fn)
@@ -124,14 +138,6 @@ class Core(WithKeymap, ColorCore):
         for log_item in self.logger.messages:
             print(log_item)
 
-    def _init_packages(self):
-        for fn in Core.__init_functions__:
-            try:
-                fn(self)
-            except:
-                self.logger.log('init-function %s failed:\n%s'
-                                % (fn.__name__, traceback.format_exc()))
-
     def _init_curses(self):
         self._screen = curses.initscr()
         curses.savetty()
@@ -139,7 +145,7 @@ class Core(WithKeymap, ColorCore):
         curses.noecho()
         curses.curs_set(0)
         self._screen.keypad(1)
-        self._screen.timeout(self.state(['core', 'read-timeout']))
+        self._screen.timeout(self.get_variable(['core', 'read-timeout']))
 
         # Init Colors
         curses.start_color()
@@ -155,13 +161,30 @@ class Core(WithKeymap, ColorCore):
 
     def _update_ui(self):
         self._render_mini_buffer() # This relies on noutrefresh called in _wm.render
+                                   # This should be refactored
         self._wm.render()
         curses.doupdate()
+
+    def _init_packages(self):
+        for fn in Core.__init_functions__:
+            try:
+                fn()
+            except:
+                self.logger.log('init-function %s failed:\n%s'
+                                % (fn.__name__, traceback.format_exc()))
+
+    def _post_init_packages(self):
+        for fn in Core.__post_init_functions__:
+            try:
+                fn()
+            except:
+                self.logger.log('post-init-function %s failed:\n%s'
+                                % (fn.__name__, traceback.format_exc()))
 
     def _update_packages(self):
         for fn in Core.__update_functions__:
             try:
-                fn(self)
+                fn()
             except:
                 self.logger.log('update-function %s failed:\n%s'
                                 % (fn.__name__, traceback.format_exc()))
@@ -179,14 +202,15 @@ class Core(WithKeymap, ColorCore):
 
     def run(self):
         self._init_curses()
+        imp.load_source('cui._user_init', './init.py')
         self._init_packages()
-        self._cui_init.initialize(self)
+        self._post_init_packages()
         self._running = True
         while self._running:
             self._update_packages()
 
             kc = keyreader.read_keychord(self._screen,
-                                         self.state(['core', 'read-timeout']))
+                                         self.get_variable(['core', 'read-timeout']))
             if kc is not None:
                 if kc == keyreader.EVT_RESIZE:
                     self._wm.resize()

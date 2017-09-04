@@ -69,8 +69,6 @@ class WithKeymapMeta(type):
 class WithKeymap(object, metaclass=WithKeymapMeta):
     """Superclass for objects handling keyboard input.
     """
-    #__metaclass__ = WithKeymapMeta
-
     def __init__(self):
         self._keymap = Keymap({}, self.__class__)
 

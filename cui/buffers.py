@@ -1,7 +1,8 @@
 import curses
 
-from cui.util import get_base_classes
+from cui.util import get_base_classes, deep_get, deep_put
 from cui.keymap import WithKeymap
+from cui import core
 
 
 class Buffer(WithKeymap):
@@ -11,9 +12,8 @@ class Buffer(WithKeymap):
     def name(cls, *args):
         return None
 
-    def __init__(self, core, *args):
+    def __init__(self, *args):
         super(Buffer, self).__init__()
-        self.core = core
         self.args = args
 
     def buffer_name(self):
@@ -32,13 +32,13 @@ class ListBuffer(Buffer):
         'C-j':    lambda b: b.on_item_selected()
     }
 
-    def __init__(self, core, *args):
-        super(ListBuffer, self).__init__(core, *args)
+    def __init__(self, *args):
+        super(ListBuffer, self).__init__(*args)
         self.item_height = 1
         self.selected_item = 0
 
     def _prepare_item(self, index, num_cols):
-        soft_tabs = ' ' * self.core.state(['tab-stop'])
+        soft_tabs = ' ' * core.Core().get_variable(['tab-stop'])
         # XXX python3
         return list(map(lambda l: l.replace('\t', soft_tabs)[:num_cols],
                         self.render_item(index)
@@ -91,7 +91,7 @@ class LogBuffer(ListBuffer):
         return "Logger"
 
     def item_count(self):
-        return len(self.core.logger.messages)
+        return len(core.Core().logger.messages)
 
     def render_item(self, index):
-        return self.core.logger.messages[index]
+        return core.Core().logger.messages[index]
