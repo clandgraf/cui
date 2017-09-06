@@ -230,7 +230,6 @@ class Core(WithKeymap,
                     except:
                         self.logger.log(traceback.format_exc())
                         self._current_keychord = []
-                        raise
 
             self._update_ui()
         self._run_exit_handlers()

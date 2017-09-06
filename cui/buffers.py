@@ -1,8 +1,21 @@
 import curses
 
-from cui.util import get_base_classes, deep_get, deep_put
+from cui.util import get_base_classes, deep_get, deep_put, minmax
 from cui.keymap import WithKeymap
 from cui import core
+
+
+def with_window(f):
+    """Decorator that runs function only if buffer is in selected window.
+    Note that this modifies the argument list of f, inserting window as
+    second positional argument.
+    """
+    def _with_window(*args, **kwargs):
+        self = args[0]
+        win = self.window()
+        if win:
+            f(args[0], win, *args[1:], **kwargs)
+    return _with_window
 
 
 class Buffer(WithKeymap):
@@ -17,14 +30,19 @@ class Buffer(WithKeymap):
         self.args = args
         self._state = {'win/buf': {}}
 
+    def window(self):
+        selected_window = core.Core().selected_window()
+        return selected_window if self == selected_window.buffer() else None
+
     def def_variable(self, path, value=None):
         deep_put(self._state, path, value, create_path=True)
 
     def set_variable(self, path, value=None):
         deep_put(self._state, path, value, create_path=False)
-        selected_window = core.Core().selected_window()
-        if path[0] == 'win/buf' and self == selected_window.buffer():
-            selected_window.update_state(path[1:], value)
+        if path[0] == 'win/buf':
+            selected_window = self.window()
+            if selected_window:
+                selected_window.update_state(path[1:], value)
 
     def get_variable(self, path):
         return deep_get(self._state, path, return_none=False)
@@ -44,7 +62,8 @@ class ListBuffer(Buffer):
         '<down>':   lambda: core.Core().current_buffer().item_down(),
         'C-<up>':   lambda: core.Core().current_buffer().scroll_up(),
         'C-<down>': lambda: core.Core().current_buffer().scroll_down(),
-        'C-j':    lambda: core.Core().current_buffer().on_item_selected()
+        'C-l':      lambda: core.Core().current_buffer().recenter(),
+        'C-j':      lambda: core.Core().current_buffer().on_item_selected()
     }
 
     def __init__(self, *args):
@@ -65,11 +84,27 @@ class ListBuffer(Buffer):
             self.set_variable(['win/buf', 'first-row'],
                               first_row + 1)
 
+    @with_window
+    def recenter(self, window):
+        max_lines = window.dimensions[0]
+        first_row = self.get_variable(['win/buf', 'first-row'])
+        selected_row = self.get_variable(['win/buf', 'selected-item']) * self.item_height
+        center = first_row - (max_lines // 2 - (selected_row - first_row))
+        self.set_variable(['win/buf', 'first-row'],
+                          minmax(0, center, self.line_count() - 4))
+
     def item_up(self):
-        pass
+        self.set_variable(['win/buf', 'selected-item'],
+                          max(0, self.get_variable(['win/buf', 'selected-item']) - 1))
+        # TODO optional (?) only if out of screen
+        self.recenter()
 
     def item_down(self):
-        pass
+        self.set_variable(['win/buf', 'selected-item'],
+                          min(self.get_variable(['win/buf', 'selected-item']) + 1,
+                              self.item_count() - 1))
+        # TODO optional (?) only if out of screen
+        self.recenter()
 
     def _prepare_item(self, index, num_cols):
         return self.render_item(index).split('\n', self.item_height)[:self.item_height]

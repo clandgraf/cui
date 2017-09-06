@@ -9,6 +9,10 @@ def get_base_classes(object_, is_class=True):
     return bases_
 
 
+def minmax(minimum, value, maximum):
+    return max(minimum, min(value, maximum))
+
+
 def _deep_error(path):
     raise KeyError('Path %s does not exist.' % path)
 
