@@ -3,7 +3,6 @@
      set_localvar: if value is defined in buffer, set in buffer else error
      get_localvar: read variable from buffer
      def_localvar: if initializer, use that, else read from core (if None initialize with None)
-     buf/win special handling
 
  --> Remove core parameter passing, use api-calls (preferably) or singleton-call (only cui)
 
