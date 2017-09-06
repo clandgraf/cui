@@ -72,17 +72,14 @@ class ListBuffer(Buffer):
         pass
 
     def _prepare_item(self, index, num_cols):
-        soft_tabs = ' ' * core.Core().get_variable(['tab-stop'])
-        # XXX python3
-        return list(map(lambda l: l.replace('\t', soft_tabs)[:num_cols],
-                        self.render_item(index)
-                            .split('\n', self.item_height)[:self.item_height]))
+        return self.render_item(index).split('\n', self.item_height)[:self.item_height]
 
     def line_count(self):
         return self.item_count() * self.item_height
 
     def get_lines(self, window, num_rows, num_cols):
         first_row = window._state['first-row']
+        selected_item = window._state['selected-item']
         item = None
         for row_index in range(first_row, min(self.line_count(),
                                               num_rows + first_row)):
@@ -90,7 +87,13 @@ class ListBuffer(Buffer):
             line_index = row_index % self.item_height
             if item is None or line_index == 0:
                 item = self._prepare_item(item_index, num_cols)
-            yield item[line_index] if line_index < len(item) else ''
+            yield (
+                {
+                    'content': item[line_index],
+                    'foreground': 'selection',
+                    'background': 'selection'
+                } if selected_item == item_index else item[line_index]
+            ) if line_index < len(item) else ''
 
     # def key_down(self):
     #     self.selected_item = min(self.item_count() - 1, self.selected_item + 1)

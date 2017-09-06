@@ -2,6 +2,7 @@ import curses
 import math
 
 from cui.util import deep_put
+from cui import core
 
 MIN_WINDOW_HEIGHT = 4
 MIN_WINDOW_WIDTH  = 20
@@ -51,9 +52,8 @@ class Window(object):
     def buffer(self):
         return self._buffer
 
-    def add_string(self, row, col, string, foreground=None, background='default', attributes=0):
-        if foreground is None:
-            foreground = self._core.get_foreground_color('default')
+    def _add_string(self, row, col, string, foreground='default', background='default', attributes=0):
+        foreground = self._core.get_foreground_color(foreground) or self._core.get_foreground_color('default')
         self._handle.addstr(row, col, string,
                             attributes |
                             curses.color_pair(self._core.get_index_for_color(foreground,
@@ -69,11 +69,32 @@ class Window(object):
         )) | curses.A_BOLD
         self._handle.insstr(self.dimensions[0], 0, mline, attr)
 
+    def _render_line_part(self, line_part, soft_tabs, row, col=0,
+                          foreground='default', background='default', attributes=0):
+        _col = col
+        if isinstance(line_part, str):
+            prepared = line_part.replace('\t', soft_tabs)[:(self.dimensions[1] - col)]
+            self._add_string(row, col, prepared, foreground, background, attributes)
+            _col += len(prepared)
+        elif isinstance(line_part, list):
+            for sub_part in line_part:
+                _col += self._render_line_part(sub_part, soft_tabs, row, _col,
+                                               foreground, background, attributes)
+        elif isinstance(line_part, dict):
+            new_foreground = line_part.get('foreground', foreground)
+            new_background = line_part.get('background', background)
+            new_attributes = line_part.get('attributes', attributes)
+            _col += self._render_line_part(line_part['content'], soft_tabs, row, _col,
+                                           new_foreground, new_background, new_attributes)
+        return _col
+
     def _render_buffer(self):
+        soft_tabs = ' ' * core.Core().get_variable(['tab-stop'])
+
         self._handle.move(0, 0)
         for idx, row in enumerate(self._buffer.get_lines(self, self.dimensions[0],
                                                                self.dimensions[1])):
-            self.add_string(idx, 0, row)
+            self._render_line_part(row, soft_tabs, idx)
             self._handle.clrtoeol()
         self._handle.clrtobot()
 
