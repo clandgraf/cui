@@ -60,8 +60,8 @@ class ListBuffer(Buffer):
     __keymap__ = {
         '<up>':     lambda: core.Core().current_buffer().item_up(),
         '<down>':   lambda: core.Core().current_buffer().item_down(),
-        'C-<up>':   lambda: core.Core().current_buffer().scroll_up(),
-        'C-<down>': lambda: core.Core().current_buffer().scroll_down(),
+        'S-<up>':   lambda: core.Core().current_buffer().scroll_up(),
+        'S-<down>': lambda: core.Core().current_buffer().scroll_down(),
         'C-l':      lambda: core.Core().current_buffer().recenter(),
         'C-j':      lambda: core.Core().current_buffer().on_item_selected()
     }
@@ -85,26 +85,28 @@ class ListBuffer(Buffer):
                               first_row + 1)
 
     @with_window
-    def recenter(self, window):
+    def recenter(self, window, out_of_bounds=False):
         max_lines = window.dimensions[0]
         first_row = self.get_variable(['win/buf', 'first-row'])
         selected_row = self.get_variable(['win/buf', 'selected-item']) * self.item_height
-        center = first_row - (max_lines // 2 - (selected_row - first_row))
-        self.set_variable(['win/buf', 'first-row'],
-                          minmax(0, center, self.line_count() - 4))
+        selected_row_offset = selected_row - first_row
+        if not out_of_bounds or \
+           selected_row_offset < 0 or \
+           selected_row_offset > max_lines - 1:
+            center = first_row - (max_lines // 2 - (selected_row - first_row))
+            self.set_variable(['win/buf', 'first-row'],
+                              minmax(0, center, self.line_count() - 4))
 
     def item_up(self):
         self.set_variable(['win/buf', 'selected-item'],
                           max(0, self.get_variable(['win/buf', 'selected-item']) - 1))
-        # TODO optional (?) only if out of screen
-        self.recenter()
+        self.recenter(out_of_bounds=True)
 
     def item_down(self):
         self.set_variable(['win/buf', 'selected-item'],
                           min(self.get_variable(['win/buf', 'selected-item']) + 1,
                               self.item_count() - 1))
-        # TODO optional (?) only if out of screen
-        self.recenter()
+        self.recenter(out_of_bounds=True)
 
     def _prepare_item(self, index, num_cols):
         return self.render_item(index).split('\n', self.item_height)[:self.item_height]
@@ -129,23 +131,6 @@ class ListBuffer(Buffer):
                     'background': 'selection'
                 } if selected_item == item_index else item[line_index]
             ) if line_index < len(item) else ''
-
-    # def key_down(self):
-    #     self.selected_item = min(self.item_count() - 1, self.selected_item + 1)
-
-    #     max_y, max_x = screen.getmaxyx()
-    #     max_lines = max_y - 1
-    #     if self.selected_item * self.item_height < self.first_line:
-    #         self.first_line = max(0, self.first_line - max_lines / 2)
-
-    # def key_up(self):
-    #     self.selected_item = max(0, self.selected_item - 1)
-
-    #     max_y, max_x = screen.getmaxyx()
-    #     max_lines = max_y - 1
-    #     if self.selected_item * self.item_height > self.first_line + max_lines - 1:
-    #         self.first_line = min(self.item_count() * self.item_height - max_lines,
-    #                               self.first_line + self.max_lines / 2)
 
     def on_item_selected(self):
         pass
