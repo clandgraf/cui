@@ -78,11 +78,14 @@ class WithKeymap(object, metaclass=WithKeymapMeta):
     def _handle_input(self, keychords):
         key_fn = self._keymap[keychords]
         if key_fn is None:
+            # keychord prefix is undefined in this keymap
             return None
         elif isinstance(key_fn, dict):
+            # Incomplete keychord
             return False
         else:
-            key_fn(self)
+            # keychord is handled
+            key_fn()
             return True
 
     def handle_input(self, keychords):

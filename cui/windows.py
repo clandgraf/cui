@@ -1,6 +1,7 @@
 import curses
 import math
 
+from cui.util import deep_put
 
 MIN_WINDOW_HEIGHT = 4
 MIN_WINDOW_WIDTH  = 20
@@ -11,7 +12,7 @@ class Window(object):
         self._core = core
         self._internal_dimensions = dimensions
         self._handle = curses.newwin(*self._internal_dimensions)
-        self._buffer = displayed_buffer
+        self.set_buffer(displayed_buffer)
         self._buffer_first_row = 0
         self.dimensions = (dimensions[0] - 1,
                            dimensions[1],
@@ -36,8 +37,16 @@ class Window(object):
                            dimensions[3])
         return self
 
+    def sync_state_to_buffer(self):
+        for key in self._state:
+            self._buffer._state['win/buf'][key] = self._state[key]
+
+    def update_state(self, path, value):
+        deep_put(self._state, path, value)
+
     def set_buffer(self, displayed_buffer):
         self._buffer = displayed_buffer
+        self._state = self._buffer._state['win/buf'].copy()
 
     def buffer(self):
         return self._buffer
@@ -62,9 +71,8 @@ class Window(object):
 
     def _render_buffer(self):
         self._handle.move(0, 0)
-        for idx, row in enumerate(self._buffer.get_lines(self._buffer_first_row,
-                                                         self.dimensions[0],
-                                                         self.dimensions[1])):
+        for idx, row in enumerate(self._buffer.get_lines(self, self.dimensions[0],
+                                                               self.dimensions[1])):
             self.add_string(idx, 0, row)
             self._handle.clrtoeol()
         self._handle.clrtobot()
@@ -87,26 +95,27 @@ class WindowManager(object):
         self._screen = screen
         self._windows = {}
         self._root = self._init_root()
-        self._selected_window = self._root
+        self.select_window(self._root['content'])
 
     def _init_root(self):
         max_y, max_x = self._screen.getmaxyx()
         dim = (max_y - 1, max_x, 0, 0)
         w = Window(self._core, self._core._buffers[0], dim)
-        self._windows[id(w)] = w
-        return {
+        self._windows[id(w)] = {
             'wm_type':    'window',
             'dimensions': dim,
             'content':    w,
             'parent':     None
         }
+        return self._windows[id(w)]
 
     def resize(self):
         max_y, max_x = self._screen.getmaxyx()
         self._root['dimensions'] = (max_y - 1, max_x, 0, 0)
         self._resize_window_tree(self._root)
 
-    def windows(self, first_window=None, yield_window=True, yield_rsplit=False, yield_bsplit=False):
+    def _iterate_windows(self, first_window=None,
+                         yield_window=True, yield_rsplit=False, yield_bsplit=False):
         win_stack = [self._root]
         win_queue = []
         at_last = first_window is not None
@@ -136,22 +145,23 @@ class WindowManager(object):
         while win_queue:
             yield win_queue.pop(0)
 
-    def window_list(self):
-        return list(self.windows())
-
-    def selected_window(self):
-        return self._selected_window['content']
-
     def _next_window(self):
         try:
-            windows=self.windows(self._selected_window)
+            windows = self._iterate_windows(self._selected_window)
             next(windows)
             return next(windows)
         except:
             return self._selected_window
 
+    def select_window(self, window):
+        self._selected_window = self._windows[id(window)]
+        self._selected_window['content'].sync_state_to_buffer()
+
+    def selected_window(self):
+        return self._selected_window['content']
+
     def select_next_window(self):
-        self._selected_window = self._next_window()
+        self.select_window(self._next_window()['content'])
 
     def _get_vertical_dimensions(self, parent_dimension):
         # TODO ratio
@@ -197,7 +207,6 @@ class WindowManager(object):
 
 
         new_win = Window(self._core, self._selected_window['content'].buffer(), d2)
-        self._windows[id(new_win)] = new_win
         w1 = {
             'wm_type':    self._selected_window['wm_type'],
             'dimensions': d1,
@@ -210,9 +219,12 @@ class WindowManager(object):
             'content':    new_win,
             'parent':     self._selected_window
         }
+        self._windows[id(w1['content'])] = w1
+        self._windows[id(new_win)] = w2
+
         self._selected_window['wm_type'] = split_type
         self._selected_window['content'] = [w1, w2]
-        self._selected_window = w1
+        self.select_window(w1['content'])
 
     def split_window_below(self):
         self._split_window('bsplit')
@@ -238,10 +250,12 @@ class WindowManager(object):
         if parent['wm_type'] != 'window':
             parent['content'][0]['parent'] = parent
             parent['content'][1]['parent'] = parent
+        else:
+            self._windows[id(parent['content'])] = parent
         self._resize_window_tree(parent)
 
         # FIXME this is not optimal
-        self._selected_window = next(self.windows())
+        self.select_window(next(self._iterate_windows())['content'])
 
     def _resize_window_tree(self, window):
         if window['wm_type'] == 'window':
@@ -262,8 +276,8 @@ class WindowManager(object):
                                                                                'default')))
 
     def render(self):
-        for w in self.windows(yield_window=False, yield_rsplit=True):
+        for w in self._iterate_windows(yield_window=False, yield_rsplit=True):
             self._render_rsplit(w)
         self._screen.noutrefresh()
-        for w in self.windows():
+        for w in self._iterate_windows():
             w['content'].render(w == self._selected_window)

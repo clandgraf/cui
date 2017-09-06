@@ -50,9 +50,10 @@ def log_window(core, w, depth=0):
         log_window(core, w['content'][1], depth=depth + 1)
 
 
-def log_windows(core):
-    core.logger.clear()
-    log_window(core, core._wm._root)
+def log_windows():
+    c = Core()
+    c.logger.clear()
+    log_window(c, c._wm._root)
 
 
 class Core(WithKeymap,
@@ -64,16 +65,15 @@ class Core(WithKeymap,
     __update_functions__ = []
 
     __keymap__ = {
-        "C-x C-c": lambda core: core.quit(),
-        "C-x 2":   lambda core: core._wm.split_window_below(),
-        "C-x 3":   lambda core: core._wm.split_window_right(),
-        "C-x 0":   lambda core: core._wm.delete_selected_window(),
-        "C-x o":   lambda core: core._wm.select_next_window(),
-        "C-i":     lambda core: core.next_buffer(),
+        "C-x C-c": lambda: Core().quit(),
+        "C-x 2":   lambda: Core()._wm.split_window_below(),
+        "C-x 3":   lambda: Core()._wm.split_window_right(),
+        "C-x 0":   lambda: Core()._wm.delete_selected_window(),
+        "C-x o":   lambda: Core()._wm.select_next_window(),
+        "C-i":     lambda: Core().next_buffer(),
         "C-w":     log_windows,
-
-        '<up>':   lambda core: core._wm.selected_window().scroll_up(),
-        '<down>': lambda core: core._wm.selected_window().scroll_down()
+        #'<up>':    lambda: Core()._wm.selected_window().scroll_up(),
+        #'<down>':  lambda: Core()._wm.selected_window().scroll_down()
     }
 
     def __init__(self):
@@ -111,7 +111,7 @@ class Core(WithKeymap,
         next_index = (self._buffers.index(w.buffer()) + 1) % len(self._buffers)
         w.set_buffer(self._buffers[next_index])
 
-    def _current_buffer(self):
+    def current_buffer(self):
         return self._wm.selected_window().buffer()
 
     def get_variable(self, path):
@@ -122,6 +122,9 @@ class Core(WithKeymap,
 
     def set_variable(self, path, value=None):
         deep_put(self._state, path, value, create_path=False)
+
+    def selected_window(self):
+        return self._wm.selected_window()
 
     def add_exit_handler(self, handler_fn):
         self._exit_handlers.append(handler_fn)
@@ -227,6 +230,7 @@ class Core(WithKeymap,
                     except:
                         self.logger.log(traceback.format_exc())
                         self._current_keychord = []
+                        raise
 
             self._update_ui()
         self._run_exit_handlers()
