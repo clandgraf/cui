@@ -1,5 +1,4 @@
 
-
 def get_base_classes(object_, is_class=True):
     bases_ = []
     class_ = __class__.__base__ if is_class else object_.__class__

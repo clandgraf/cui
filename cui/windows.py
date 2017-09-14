@@ -13,12 +13,16 @@ class Window(object):
         self._core = core
         self._internal_dimensions = dimensions
         self._handle = curses.newwin(*self._internal_dimensions)
+        self._buffer = None
         self.set_buffer(displayed_buffer)
         self._buffer_first_row = 0
         self.dimensions = (dimensions[0] - 1,
                            dimensions[1],
                            dimensions[2],
                            dimensions[3])
+
+    def __del__(self):
+        del self._handle
 
     def scroll_up(self):
         if self._buffer_first_row > 0:
@@ -46,6 +50,9 @@ class Window(object):
         deep_put(self._state, path, value)
 
     def set_buffer(self, displayed_buffer):
+        if displayed_buffer == self._buffer:
+            return
+
         self._buffer = displayed_buffer
         self._state = self._buffer._state['win/buf'].copy()
 
@@ -90,10 +97,8 @@ class Window(object):
 
     def _render_buffer(self):
         soft_tabs = ' ' * core.Core().get_variable(['tab-stop'])
-
         self._handle.move(0, 0)
-        for idx, row in enumerate(self._buffer.get_lines(self, self.dimensions[0],
-                                                               self.dimensions[1])):
+        for idx, row in enumerate(self._buffer.get_lines(self)):
             self._render_line_part(row, soft_tabs, idx)
             self._handle.clrtoeol()
         self._handle.clrtobot()
@@ -121,7 +126,7 @@ class WindowManager(object):
     def _init_root(self):
         max_y, max_x = self._screen.getmaxyx()
         dim = (max_y - 1, max_x, 0, 0)
-        w = Window(self._core, self._core._buffers[0], dim)
+        w = Window(self._core, self._core.buffers[0], dim)
         self._windows[id(w)] = {
             'wm_type':    'window',
             'dimensions': dim,
@@ -297,8 +302,8 @@ class WindowManager(object):
                                                                                'default')))
 
     def render(self):
+        for w in self._iterate_windows():
+            w['content'].render(w == self._selected_window)
         for w in self._iterate_windows(yield_window=False, yield_rsplit=True):
             self._render_rsplit(w)
         self._screen.noutrefresh()
-        for w in self._iterate_windows():
-            w['content'].render(w == self._selected_window)

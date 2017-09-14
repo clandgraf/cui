@@ -21,5 +21,8 @@ def get_variable(path):
 def switch_buffer(buffer_class, *args):
     return _Core().switch_buffer(buffer_class, *args)
 
+def current_buffer():
+    return _Core().current_buffer()
+
 def message(msg):
     return _Core().logger.log(msg)

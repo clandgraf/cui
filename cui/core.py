@@ -5,7 +5,7 @@ import math
 import traceback
 
 from cui import keyreader
-from cui.buffers import LogBuffer
+from cui.buffers import LogBuffer, BufferListBuffer
 from cui.logger import Logger
 from cui.keymap import WithKeymap
 from cui.util import deep_get, deep_put
@@ -35,6 +35,7 @@ def update_func(fn):
 
 def _init_state(core):
     core.def_variable(['tab-stop'], 4)
+    core.def_variable(['tree-tab'], 2)
     core.def_variable(['core', 'read-timeout'], READ_TIMEOUT)
 
 
@@ -72,16 +73,15 @@ class Core(WithKeymap,
         "C-x o":   lambda: Core()._wm.select_next_window(),
         "C-i":     lambda: Core().next_buffer(),
         "C-w":     log_windows,
-        #'<up>':    lambda: Core()._wm.selected_window().scroll_up(),
-        #'<down>':  lambda: Core()._wm.selected_window().scroll_down()
+        "C-x C-b": lambda: Core().switch_buffer(BufferListBuffer)
     }
 
     def __init__(self):
         super(Core, self).__init__()
         self.logger = Logger()
+        self.buffers = [LogBuffer(), BufferListBuffer()]
         self._state = {}
         self._screen = None
-        self._buffers = [LogBuffer()]
         self._exit_handlers = []
         self._current_keychord = []
         self._mini_buffer = ""
@@ -96,20 +96,23 @@ class Core(WithKeymap,
     def switch_buffer(self, buffer_class, *args):
         buffer_name = buffer_class.name(*args)
         buffers = list(filter(lambda b: b.buffer_name() == buffer_name,  # XXX python3
-                              self._buffers))
+                              self.buffers))
         if len(buffers) > 1:
             self.logger.log('Error: multiple buffers with same buffer_name')
             return
         elif len(buffers) == 0:
-            self._buffers.insert(0, buffer_class(*args))
-            self._wm.selected_window().set_buffer(self._buffers[0])
+            self.buffers.insert(0, buffer_class(*args))
+            self._wm.selected_window().set_buffer(self.buffers[0])
         else:
             self._wm.selected_window().set_buffer(buffers[0])
 
+    def select_buffer(self, buffer_object):
+        self.selected_window().set_buffer(buffer_object)
+
     def next_buffer(self):
-        w = self._wm.selected_window()
-        next_index = (self._buffers.index(w.buffer()) + 1) % len(self._buffers)
-        w.set_buffer(self._buffers[next_index])
+        w = self.selected_window()
+        next_index = (self.buffers.index(w.buffer()) + 1) % len(self.buffers)
+        w.set_buffer(self.buffers[next_index])
 
     def current_buffer(self):
         return self._wm.selected_window().buffer()
@@ -158,15 +161,13 @@ class Core(WithKeymap,
         self.add_exit_handler(self._quit_curses)
         self._wm = WindowManager(self, self._screen)
 
+        max_y, max_x = self._screen.getmaxyx()
+        self._mini_buffer_win = curses.newwin(1, max_x, max_y - 1, 0)
+
     def _quit_curses(self):
+        del self._mini_buffer_win
         curses.resetty()
         curses.endwin()
-
-    def _update_ui(self):
-        self._render_mini_buffer() # This relies on noutrefresh called in _wm.render
-                                   # This should be refactored
-        self._wm.render()
-        curses.doupdate()
 
     def _init_packages(self):
         for fn in Core.__init_functions__:
@@ -192,10 +193,22 @@ class Core(WithKeymap,
                 self.logger.log('update-function %s failed:\n%s'
                                 % (fn.__name__, traceback.format_exc()))
 
+    def _update_ui(self):
+        self._wm.render()
+        self._render_mini_buffer()
+        curses.doupdate()
+
     def _render_mini_buffer(self):
+        max_y, max_x = self._mini_buffer_win.getmaxyx()
+        self._mini_buffer_win.addstr(0, 0, self._mini_buffer[:max_x - 1])
+        self._mini_buffer_win.clrtoeol()
+        self._mini_buffer_win.noutrefresh()
+
+    def _handle_resize(self):
         max_y, max_x = self._screen.getmaxyx()
-        self._screen.addstr(max_y - 1, 0, self._mini_buffer[:(max_x - 1)])
-        self._screen.clrtoeol()
+        self._mini_buffer_win.resize(1, max_x)
+        self._mini_buffer_win.mvwin(max_y - 1, 0)
+        self._wm.resize()
 
     def quit(self):
         self._running = False
@@ -211,12 +224,14 @@ class Core(WithKeymap,
         self._running = True
         while self._running:
             self._update_packages()
+            for b in self.buffers:
+                b.prepare()
 
             kc = keyreader.read_keychord(self._screen,
                                          self.get_variable(['core', 'read-timeout']))
             if kc is not None:
                 if kc == keyreader.EVT_RESIZE:
-                    self._wm.resize()
+                    self._handle_resize()
                 else:
                     try:
                         self._current_keychord.append(kc)

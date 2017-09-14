@@ -1,8 +1,15 @@
 import curses
+import itertools
 
 from cui.util import get_base_classes, deep_get, deep_put, minmax
 from cui.keymap import WithKeymap
 from cui import core
+
+
+def pad_left(width, string):
+    if len(string) > width:
+        return '%s%s' % ('...', string[-(width - 3):])
+    return string
 
 
 def with_window(f):
@@ -50,11 +57,15 @@ class Buffer(WithKeymap):
     def buffer_name(self):
         return self.name(*self.args)
 
+    def prepare(self):
+        pass
+
     def line_count(self):
         pass
 
-    def get_lines(self, num_rows, num_cols):
+    def get_lines(self, window):
         pass
+
 
 class ListBuffer(Buffer):
     __keymap__ = {
@@ -68,7 +79,7 @@ class ListBuffer(Buffer):
 
     def __init__(self, *args):
         super(ListBuffer, self).__init__(*args)
-        self.item_height = 1
+        self._item_height = 1
         self.def_variable(['win/buf', 'first-row'], 0)
         self.def_variable(['win/buf', 'selected-item'], 0)
 
@@ -88,7 +99,7 @@ class ListBuffer(Buffer):
     def recenter(self, window, out_of_bounds=False):
         max_lines = window.dimensions[0]
         first_row = self.get_variable(['win/buf', 'first-row'])
-        selected_row = self.get_variable(['win/buf', 'selected-item']) * self.item_height
+        selected_row = self.get_variable(['win/buf', 'selected-item']) * self._item_height
         selected_row_offset = selected_row - first_row
         if not out_of_bounds or \
            selected_row_offset < 0 or \
@@ -108,22 +119,22 @@ class ListBuffer(Buffer):
                               self.item_count() - 1))
         self.recenter(out_of_bounds=True)
 
-    def _prepare_item(self, index, num_cols):
-        return self.render_item(index).split('\n', self.item_height)[:self.item_height]
+    def selected_item(self):
+        return self.items()[self.get_variable(['win/buf', 'selected-item'])]
 
     def line_count(self):
-        return self.item_count() * self.item_height
+        return self.item_count() * self._item_height
 
-    def get_lines(self, window, num_rows, num_cols):
+    def get_lines(self, window):
         first_row = window._state['first-row']
         selected_item = window._state['selected-item']
         item = None
         for row_index in range(first_row, min(self.line_count(),
-                                              num_rows + first_row)):
-            item_index = row_index // self.item_height
-            line_index = row_index % self.item_height
+                                              window.dimensions[0] + first_row)):
+            item_index = row_index // self._item_height
+            line_index = row_index % self._item_height
             if item is None or line_index == 0:
-                item = self._prepare_item(item_index, num_cols)
+                item = self.render_item(window, self.items()[item_index])
             yield (
                 {
                     'content': item[line_index],
@@ -135,11 +146,14 @@ class ListBuffer(Buffer):
     def on_item_selected(self):
         pass
 
-    def item_count(self):
-        pass
+    def items(self):
+        return []
 
-    def render_item(self, index):
-        pass
+    def item_count(self):
+        return len(self.items())
+
+    def render_item(self, window, item):
+        return [item]
 
 
 class LogBuffer(ListBuffer):
@@ -147,8 +161,68 @@ class LogBuffer(ListBuffer):
     def name(cls, *args):
         return "Logger"
 
-    def item_count(self):
-        return len(core.Core().logger.messages)
+    def items(self):
+        return core.Core().logger.messages
 
-    def render_item(self, index):
-        return core.Core().logger.messages[index]
+    def render_item(self, window, item):
+        return item.split('\n', self._item_height)[:self._item_height]
+
+
+class BufferListBuffer(ListBuffer):
+    @classmethod
+    def name(cls, *args):
+        return "Buffers"
+
+    def items(self):
+        return core.Core().buffers
+
+    def on_item_selected(self):
+        core.Core().select_buffer(self.selected_item())
+
+    def render_item(self, window, item):
+        return [item.buffer_name()]
+
+
+class TreeBuffer(ListBuffer):
+    def __init__(self, *args):
+        super(TreeBuffer, self).__init__(*args)
+        self._flattened = []
+
+    def get_children(self, item):
+        return []
+
+    def get_roots(self):
+        return []
+
+    def prepare(self):
+        self._flattened = []
+        node_stack = list(map(lambda n: {'item': n, 'depth': 0},
+                              self.get_roots()))
+        while node_stack:
+            n = node_stack.pop(0)
+            self._flattened.append(n)
+            node_stack[0:0] = list(map(lambda child: {'item': child,
+                                                      'depth': n['depth'] + 1},
+                                       self.get_children(n['item'])))
+
+    def items(self):
+        return self._flattened
+
+    def selected_item(self):
+        return super(TreeBuffer, self).selected_item()['item']
+
+    def render_item(self, window, item):
+        tree_tab = core.Core().get_variable(['tree-tab'])
+        rendered_node = self.render_node(window, item['item'], item['depth'],
+                                    window.dimensions[1] - tree_tab * item['depth'])
+        return [[self.render_tree_tab(window, line, tree_tab, item['depth'],
+                                      line == rendered_node[0],
+                                      line == rendered_node[-1]),
+                 line]
+                for line in rendered_node]
+
+    def render_tree_tab(self, window, line, tree_tab, depth, first, last):
+        return (' ' * depth * tree_tab)
+
+    def render_node(self, window, item, depth, width):
+        return [item]

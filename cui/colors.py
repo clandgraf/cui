@@ -19,7 +19,10 @@ FGCOL_MAP = {
     'default':           'white',
     'selection':         'black',
     'modeline_active':   'black',
-    'modeline_inactive': 'white'
+    'modeline_inactive': 'white',
+
+    'error':             'red',
+    'info':              'green'
 }
 
 BGCOL_MAP = {
