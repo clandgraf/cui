@@ -183,6 +183,12 @@ class WindowManager(object):
         self._selected_window = self._windows[id(window)]
         self._selected_window['content'].sync_state_to_buffer()
 
+    def find_window(self, predicate):
+        for w in self._iterate_windows():
+            if predicate(w['content']):
+                return w['content']
+        return None
+
     def selected_window(self):
         return self._selected_window['content']
 
@@ -229,8 +235,7 @@ class WindowManager(object):
         d1, d2 = self._get_dimensions(split_type, self._selected_window['dimensions'])
         if self._check_dimension(d1) or self._check_dimension(d2):
             self._core.message("Can not split. Dimensions too small.")
-            return
-
+            return None
 
         new_win = Window(self._core, self._selected_window['content'].buffer(), d2)
         w1 = {
@@ -251,12 +256,13 @@ class WindowManager(object):
         self._selected_window['wm_type'] = split_type
         self._selected_window['content'] = [w1, w2]
         self.select_window(w1['content'])
+        return w2['content']
 
     def split_window_below(self):
-        self._split_window('bsplit')
+        return self._split_window('bsplit')
 
     def split_window_right(self):
-        self._split_window('rsplit')
+        return self._split_window('rsplit')
 
     def delete_selected_window(self):
         # Do not delete last window
