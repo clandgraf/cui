@@ -60,6 +60,8 @@ class Window(object):
         return self._buffer
 
     def _add_string(self, row, col, string, foreground='default', background='default', attributes=0):
+        if len(string) == 0:
+            return
         foreground = self._core.get_foreground_color(foreground) or self._core.get_foreground_color('default')
         self._handle.addstr(row, col, string,
                             attributes |
@@ -80,27 +82,33 @@ class Window(object):
                           foreground='default', background='default', attributes=0):
         _col = col
         if isinstance(line_part, str):
-            prepared = line_part.replace('\t', soft_tabs)[:(self.dimensions[1] - col)]
-            self._add_string(row, col, prepared, foreground, background, attributes)
+            prepared = line_part.replace('\t', soft_tabs)[:(self.dimensions[1] - _col)]
+            self._add_string(row, _col, prepared, foreground, background, attributes)
             _col += len(prepared)
         elif isinstance(line_part, list):
             for sub_part in line_part:
-                _col += self._render_line_part(sub_part, soft_tabs, row, _col,
-                                               foreground, background, attributes)
+                _col = self._render_line_part(sub_part, soft_tabs, row, _col,
+                                              foreground, background, attributes)
         elif isinstance(line_part, dict):
             new_foreground = line_part.get('foreground', foreground)
             new_background = line_part.get('background', background)
             new_attributes = line_part.get('attributes', attributes)
-            _col += self._render_line_part(line_part['content'], soft_tabs, row, _col,
-                                           new_foreground, new_background, new_attributes)
+            _col = self._render_line_part(line_part['content'], soft_tabs, row, _col,
+                                          new_foreground, new_background, new_attributes)
         return _col
 
     def _render_buffer(self):
         soft_tabs = ' ' * core.Core().get_variable(['tab-stop'])
-        self._handle.move(0, 0)
         for idx, row in enumerate(self._buffer.get_lines(self)):
-            self._render_line_part(row, soft_tabs, idx)
-            self._handle.clrtoeol()
+            self._handle.move(idx, 0)
+            _col = self._render_line_part(row, soft_tabs, idx)
+            # Clear with background color
+            if isinstance(row, dict):
+                rest = self.dimensions[1] - _col
+                if rest > 0:
+                    self._add_string(idx, _col, rest * ' ', 'default', row.get('background'))
+            else:
+                self._handle.clrtoeol()
         self._handle.clrtobot()
 
     def render(self, is_active):

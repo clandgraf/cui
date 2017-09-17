@@ -87,12 +87,15 @@ def current_buffer():
 def select_buffer(buffer_object):
     return Core().select_buffer(buffer_object)
 
+def get_buffer(buffer_class, *args):
+    return self.get_buffer(buffer_class, *args)
+
 def create_buffer(buffer_class, *args):
     return Core().create_buffer(buffer_class, *args)
 
 def with_buffer(fn):
     def _fn(buffer_class, *args):
-        fn(create_buffer(buffer_class, *args))
+        return fn(create_buffer(buffer_class, *args))
     return _fn
 
 @with_buffer
@@ -109,7 +112,7 @@ def buffer_visible(buffer_object):
         win = split_window_below()
         if win:
             win.set_buffer(buffer_object)
-    return win
+    return (win, buffer_object)
 
 # ==============================================================================
 
@@ -175,22 +178,22 @@ class Core(WithKeymap,
         self._mini_buffer = msg
 
     def get_buffer(self, buffer_class, *args):
-        # TODO How to differ between  len(buffers) > 1 and len(buffers) == 0 ????
-        pass
-
-    def create_buffer(self, buffer_class, *args):
         buffer_name = buffer_class.name(*args)
         buffers = list(filter(lambda b: b.buffer_name() == buffer_name,  # XXX python3
                               self.buffers))
         if len(buffers) > 1:
-            self.logger.log('Error: multiple buffers with same buffer_name')
-            return None
+            raise Exception('Error: multiple buffers with same buffer_name')
         elif len(buffers) == 0:
-            buffer_object = buffer_class(*args)
-            self.buffers.insert(0, buffer_object)
-            return buffer_object
+            return None
         else:
             return buffers[0]
+
+    def create_buffer(self, buffer_class, *args):
+        buffer_object = self.get_buffer(buffer_class, *args)
+        if buffer_object == None:
+            buffer_object = buffer_class(*args)
+            self.buffers.insert(0, buffer_object)
+        return buffer_object
 
     def select_buffer(self, buffer_object):
         if buffer_object:

@@ -134,7 +134,7 @@ class ListBuffer(Buffer):
             item_index = row_index // self._item_height
             line_index = row_index % self._item_height
             if item is None or line_index == 0:
-                item = self.render_item(window, self.items()[item_index])
+                item = self.render_item(window, self.items()[item_index], item_index)
             yield (
                 {
                     'content': item[line_index],
@@ -152,7 +152,7 @@ class ListBuffer(Buffer):
     def item_count(self):
         return len(self.items())
 
-    def render_item(self, window, item):
+    def render_item(self, window, item, index):
         return [item]
 
 
@@ -164,7 +164,7 @@ class LogBuffer(ListBuffer):
     def items(self):
         return core.Core().logger.messages
 
-    def render_item(self, window, item):
+    def render_item(self, window, item, index):
         return item.split('\n', self._item_height)[:self._item_height]
 
 
@@ -179,7 +179,7 @@ class BufferListBuffer(ListBuffer):
     def on_item_selected(self):
         core.Core().select_buffer(self.selected_item())
 
-    def render_item(self, window, item):
+    def render_item(self, window, item, index):
         return [item.buffer_name()]
 
 
@@ -211,7 +211,7 @@ class TreeBuffer(ListBuffer):
     def selected_item(self):
         return super(TreeBuffer, self).selected_item()['item']
 
-    def render_item(self, window, item):
+    def render_item(self, window, item, index):
         tree_tab = core.Core().get_variable(['tree-tab'])
         rendered_node = self.render_node(window, item['item'], item['depth'],
                                     window.dimensions[1] - tree_tab * item['depth'])

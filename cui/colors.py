@@ -20,6 +20,7 @@ FGCOL_MAP = {
     'selection':         'black',
     'modeline_active':   'black',
     'modeline_inactive': 'white',
+    'special':           'black',
 
     'error':             'red',
     'info':              'green'
@@ -29,7 +30,8 @@ BGCOL_MAP = {
     'default':           {'index': 0, 'color': 'black'},
     'selection':         {'index': 1, 'color': 'white'},
     'modeline_active':   {'index': 2, 'color': 'white'},
-    'modeline_inactive': {'index': 3, 'color': 'black'}
+    'modeline_inactive': {'index': 3, 'color': 'black'},
+    'special':           {'index': 4, 'color': 'white'}
 }
 
 COLOR_RE = re.compile('#(%(h)s)(%(h)s)(%(h)s)' % {'h': '[0-9a-fA-F]{2}'})
@@ -100,9 +102,6 @@ class ColorCore(object):
             curses.init_pair(pair_index, color_index, COLOR_MAP[bg_entry['color']])
 
     def def_foreground(self, fg_type, color_name):
-        if fg_type not in FGCOL_MAP:
-            raise Exception('Background type %s is not defined.' % fg_type)
-
         FGCOL_MAP[fg_type] = color_name
 
     def def_background(self, bg_type, color_name):

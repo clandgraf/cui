@@ -4,7 +4,7 @@ from cui.core import \
     def_colors, def_foreground, def_background, \
     def_variable, get_variable, set_variable, \
     find_window, split_window_below, split_window_right, \
-    select_buffer, switch_buffer, current_buffer, buffer_window, buffer_visible
+    get_buffer, select_buffer, switch_buffer, current_buffer, buffer_window, buffer_visible
 from cui import buffers
 
 __all__ = [
@@ -24,6 +24,7 @@ __all__ = [
 
     'current_buffer',
     'select_buffer'
+    'get_buffer',
     'switch_buffer',
     'buffer_window',
     'buffer_visible',
