@@ -331,6 +331,7 @@ class Core(WithKeymap,
             self._update_packages()
             for b in self.buffers:
                 b.prepare()
+            self._update_ui()
 
             kc = keyreader.read_keychord(self._screen,
                                          self.get_variable(['core', 'read-timeout']))
@@ -351,5 +352,4 @@ class Core(WithKeymap,
                         self.logger.log(traceback.format_exc())
                         self._current_keychord = []
 
-            self._update_ui()
         self._run_exit_handlers()
