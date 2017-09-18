@@ -67,6 +67,9 @@ def set_variable(path, value=None):
 
 # Windows
 
+def select_window(window):
+    return Core().select_window(window)
+
 def find_window(predicate):
     return Core().find_window(predicate)
 
@@ -218,6 +221,9 @@ class Core(WithKeymap,
 
     def find_window(self, predicate):
         return self._wm.find_window(predicate)
+
+    def select_window(self, window):
+        return self._wm.select_window(window)
 
     def split_window_below(self):
         return self._wm.split_window_below()

@@ -125,7 +125,11 @@ class ListBuffer(Buffer):
     def line_count(self):
         return self.item_count() * self._item_height
 
+    def hide_selection(self):
+        return False
+
     def get_lines(self, window):
+        hide_selection = self.hide_selection()
         first_row = window._state['first-row']
         selected_item = window._state['selected-item']
         item = None
@@ -140,7 +144,9 @@ class ListBuffer(Buffer):
                     'content': item[line_index],
                     'foreground': 'selection',
                     'background': 'selection'
-                } if selected_item == item_index else item[line_index]
+                } if selected_item == item_index and not hide_selection else (
+                    item[line_index]
+                )
             ) if line_index < len(item) else ''
 
     def on_item_selected(self):

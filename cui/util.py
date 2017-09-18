@@ -1,3 +1,8 @@
+from operator import add
+from functools import reduce
+
+def intersperse(lst, sep):
+    return reduce(add, [(e, sep) for e in lst])[:-1]
 
 def get_base_classes(object_, is_class=True):
     bases_ = []

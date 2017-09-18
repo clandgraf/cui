@@ -190,6 +190,7 @@ class WindowManager(object):
     def select_window(self, window):
         self._selected_window = self._windows[id(window)]
         self._selected_window['content'].sync_state_to_buffer()
+        return window
 
     def find_window(self, predicate):
         for w in self._iterate_windows():
