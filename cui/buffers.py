@@ -220,7 +220,7 @@ class TreeBuffer(ListBuffer):
     def render_item(self, window, item, index):
         tree_tab = core.Core().get_variable(['tree-tab'])
         rendered_node = self.render_node(window, item['item'], item['depth'],
-                                    window.dimensions[1] - tree_tab * item['depth'])
+                                         window.dimensions[1] - tree_tab * item['depth'])
         return [[self.render_tree_tab(window, line, tree_tab, item['depth'],
                                       line == rendered_node[0],
                                       line == rendered_node[-1]),

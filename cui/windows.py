@@ -99,6 +99,7 @@ class Window(object):
 
     def _render_buffer(self):
         soft_tabs = ' ' * core.Core().get_variable(['tab-stop'])
+        self._handle.move(0, 0)
         for idx, row in enumerate(self._buffer.get_lines(self)):
             self._handle.move(idx, 0)
             _col = self._render_line_part(row, soft_tabs, idx)
