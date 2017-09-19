@@ -5,6 +5,7 @@ cui.def_colors('black',      '#203439')
 cui.def_colors('magenta',    '#fc5a7b')
 cui.def_colors('green',      '#229c74')
 cui.def_colors('blue',       '#0064a8')
+cui.def_colors('cyan',       '#1cacf9')
 
 cui.def_colors('light_teal', '#506064')
 cui.def_colors('med_teal',   '#304247')

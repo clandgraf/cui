@@ -91,14 +91,14 @@ def select_buffer(buffer_object):
     return Core().select_buffer(buffer_object)
 
 def get_buffer(buffer_class, *args):
-    return self.get_buffer(buffer_class, *args)
+    return Core().get_buffer(buffer_class, *args)
 
 def create_buffer(buffer_class, *args):
     return Core().create_buffer(buffer_class, *args)
 
 def with_buffer(fn):
-    def _fn(buffer_class, *args):
-        return fn(create_buffer(buffer_class, *args))
+    def _fn(buffer_class, *args, **kwargs):
+        return fn(create_buffer(buffer_class, *args), **kwargs)
     return _fn
 
 @with_buffer
@@ -109,10 +109,10 @@ def buffer_window(buffer_object):
     return find_window(lambda w: w.buffer() == buffer_object)
 
 @with_buffer
-def buffer_visible(buffer_object):
+def buffer_visible(buffer_object, split_method=split_window_below):
     win = buffer_window(buffer_object)
     if not win:
-        win = split_window_below()
+        win = split_method()
         if win:
             win.set_buffer(buffer_object)
     return (win, buffer_object)
