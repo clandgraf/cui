@@ -25,6 +25,12 @@ def with_window(f):
     return _with_window
 
 
+def with_current_buffer(fn):
+    def _fn():
+        return fn(core.Core().current_buffer())
+    return _fn
+
+
 class Buffer(WithKeymap):
     __keymap__ = {}
 
@@ -36,6 +42,9 @@ class Buffer(WithKeymap):
         super(Buffer, self).__init__()
         self.args = args
         self._state = {'win/buf': {}}
+
+    def buffer_name(self):
+        return self.name(*self.args)
 
     def window(self):
         selected_window = core.Core().selected_window()
@@ -54,8 +63,14 @@ class Buffer(WithKeymap):
     def get_variable(self, path):
         return deep_get(self._state, path, return_none=False)
 
-    def buffer_name(self):
-        return self.name(*self.args)
+    # --------------- Override these ------------
+
+    @property
+    def takes_input(self):
+        return False
+
+    def send_input(self, string):
+        pass
 
     def prepare(self):
         pass
@@ -232,3 +247,100 @@ class TreeBuffer(ListBuffer):
 
     def render_node(self, window, item, depth, width):
         return [item]
+
+
+@with_current_buffer
+def next_char(buf):
+    return buf.set_cursor(buf.cursor + 1)
+
+@with_current_buffer
+def prev_char(buf):
+    return buf.set_cursor(buf.cursor - 1)
+
+@with_current_buffer
+def delete_next_char(buf):
+    buf.delete_chars(1)
+
+@with_current_buffer
+def delete_prev_char(buf):
+    if prev_char():
+        buf.delete_chars(1)
+
+
+class ConsoleBuffer(Buffer):
+    __keymap__ = {
+        'C-j': with_current_buffer(lambda buf: buf.send_current_buffer()),
+        'C-?': delete_prev_char,
+        '<del>': delete_next_char,
+        '<left>': prev_char,
+        '<right>': next_char
+    }
+
+    def __init__(self, *args):
+        super(ConsoleBuffer, self).__init__(*args)
+        self._chistory = []
+        self._buffer = ''
+        self._cursor = 0
+        self.prompt = '> '
+
+    @property
+    def takes_input(self):
+        return True
+
+    def insert_chars(self, string):
+        self._buffer = self._buffer[:self._cursor] + string + self._buffer[self._cursor:]
+        self._cursor += len(string)
+
+    def delete_chars(self, length):
+        if self._cursor < len(self._buffer):
+            self._buffer = self._buffer[:self._cursor] + self._buffer[self._cursor + length:]
+
+    @property
+    def cursor(self):
+        return self._cursor
+
+    def set_cursor(self, cur):
+        if cur >= 0 and cur <= len(self._buffer):
+            self._cursor = cur
+            return True
+        return False
+
+    def buffer_line(self, cursor):
+        bstring = self._buffer + ' '
+        return [self.prompt,
+                [bstring[:self._cursor],
+                 {'content': bstring[self._cursor],
+                  'foreground': 'special',
+                  'background': 'special'},
+                 bstring[self._cursor + 1:]] \
+                if cursor else \
+                self._buffer]
+
+    def get_lines(self, window):
+        yield from iter(self._chistory)
+        yield self.buffer_line(cursor=True)
+
+    def line_count(self):
+        return len(self._chistory) + 1
+
+    def send_current_buffer(self):
+        self._chistory.append(self.buffer_line(cursor=False))
+        b = self._buffer
+        self._buffer = ''
+        self._cursor = 0
+        self.on_send_current_buffer(b)
+
+    def on_send_current_buffer(self, b):
+        pass
+
+
+class TestConsoleBuffer(ConsoleBuffer):
+    @classmethod
+    def name(cls):
+        return "TestConsole"
+
+    def __init__(self, *args):
+        super(TestConsoleBuffer, self).__init__()
+
+    def on_send_current_buffer(self, b):
+        core.Core().message(b)

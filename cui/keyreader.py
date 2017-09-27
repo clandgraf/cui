@@ -4,6 +4,8 @@ import re
 EVT_RESIZE = 'key_resize'
 
 KEYNAME_MAP = {
+    'KEY_DC':     '<del>',
+
     'KEY_UP':     '<up>',
     'KEY_SR':     'S-<up>',
     'kUP3':       'M-<up>',
@@ -57,20 +59,23 @@ def translate_keyname(keyname, meta=False):
     return KEYNAME_MAP.get(keyname, keyname.lower())
 
 
-def read_keychord(screen, timeout):
+def read_keychord(screen, timeout, receive_input=False):
     key = screen.getch()
     if key == -1:
-        return None
+        return None, None
     if key == 27:
         try:
             screen.timeout(0)
             key = screen.getch()
             if key == -1:
-                return '<esc>'
+                return '<esc>', False
             else:
                 return translate_keyname(curses.keyname(key).decode('utf-8'),
-                                         meta=True)
+                                         meta=True), False
         finally:
             screen.timeout(timeout)
     else:
-        return translate_keyname(curses.keyname(key).decode('utf-8'))
+        keyname = curses.keyname(key).decode('utf-8')
+        if receive_input and len(keyname) == 1:
+            return keyname, True
+        return translate_keyname(keyname), False

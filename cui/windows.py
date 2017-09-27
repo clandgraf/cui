@@ -8,39 +8,89 @@ MIN_WINDOW_HEIGHT = 4
 MIN_WINDOW_WIDTH  = 20
 
 
-class Window(object):
-    def __init__(self, core, displayed_buffer, dimensions):
+class WindowBase(object):
+    def __init__(self, core, dimensions):
         self._core = core
-        self._internal_dimensions = dimensions
+        self._init_dimensions(dimensions)
         self._handle = curses.newwin(*self._internal_dimensions)
-        self._buffer = None
-        self.set_buffer(displayed_buffer)
-        self._buffer_first_row = 0
-        self.dimensions = (dimensions[0] - 1,
-                           dimensions[1],
-                           dimensions[2],
-                           dimensions[3])
 
     def __del__(self):
         del self._handle
 
-    def scroll_up(self):
-        if self._buffer_first_row > 0:
-            self._buffer_first_row -= 1
+    def _init_dimensions(self, dimensions):
+        self._internal_dimensions = dimensions
+        self.dimensions = self.get_content_dimensions(dimensions)
 
-    def scroll_down(self):
-        if self._buffer_first_row + self.dimensions[0] < self.buffer().line_count():
-            self._buffer_first_row += 1
-
-    def update_dimensions(self, dimensions):
+    def _update_dimensions(self, dimensions):
         self._internal_dimensions = dimensions
         self._handle.resize(*dimensions[:2])
         self._handle.mvwin(*dimensions[2:])
-        self.dimensions = (dimensions[0] - 1,
-                           dimensions[1],
-                           dimensions[2],
-                           dimensions[3])
+        self.dimensions = self.get_content_dimensions(dimensions)
         return self
+
+    def get_content_dimensions(self, dim):
+        return (dim[0], dim[1], dim[2], dim[3])
+
+    def _add_string(self, row, col, string, foreground='default', background='default', attributes=0):
+        if len(string) == 0:
+            return
+        foreground = self._core.get_foreground_color(foreground) or self._core.get_foreground_color('default')
+        self._handle.addstr(row, col, string,
+                            attributes |
+                            curses.color_pair(self._core.get_index_for_color(foreground,
+                                                                             background)))
+
+    def _render_line(self, line, soft_tabs, row, col=0,
+                     foreground='default', background='default', attributes=0):
+        _col = col
+        if isinstance(line, str):
+            prepared = line.replace('\t', soft_tabs)[:(self.dimensions[1] - _col)]
+            self._add_string(row, _col, prepared, foreground, background, attributes)
+            _col += len(prepared)
+        elif isinstance(line, list):
+            for sub_part in line:
+                _col = self._render_line(sub_part, soft_tabs, row, _col,
+                                         foreground, background, attributes)
+        elif isinstance(line, dict):
+            new_foreground = line.get('foreground', foreground)
+            new_background = line.get('background', background)
+            new_attributes = line.get('attributes', attributes)
+            _col = self._render_line(line['content'], soft_tabs, row, _col,
+                                     new_foreground, new_background, new_attributes)
+        return _col
+
+
+class MiniBuffer(WindowBase):
+    def __init__(self, core, screen):
+        super(MiniBuffer, self).__init__(
+            core,
+            (1, screen.getmaxyx()[1], screen.getmaxyx()[0] - 1, 0)
+        )
+        self._screen = screen
+
+    def get_content_dimensions(self, dim):
+        return (dim[0], dim[1] - 1, dim[2], dim[3])
+
+    def resize(self):
+        max_y, max_x = self._screen.getmaxyx()
+        self._update_dimensions((1, max_x, max_y - 1, 0))
+
+    def render(self):
+        self._render_line(core.Core().mini_buffer.split('\n', 1)[0],
+                          ' ' * core.Core().get_variable(['tab-stop']),
+                          0)
+        self._handle.clrtoeol()
+        self._handle.noutrefresh()
+
+
+class Window(WindowBase):
+    def __init__(self, core, dimensions, displayed_buffer):
+        super(Window, self).__init__(core, dimensions)
+        self._buffer = None
+        self.set_buffer(displayed_buffer)
+
+    def get_content_dimensions(self, dim):
+        return (dim[0] - 1, dim[1], dim[2], dim[3])
 
     def sync_state_to_buffer(self):
         for key in self._state:
@@ -59,15 +109,6 @@ class Window(object):
     def buffer(self):
         return self._buffer
 
-    def _add_string(self, row, col, string, foreground='default', background='default', attributes=0):
-        if len(string) == 0:
-            return
-        foreground = self._core.get_foreground_color(foreground) or self._core.get_foreground_color('default')
-        self._handle.addstr(row, col, string,
-                            attributes |
-                            curses.color_pair(self._core.get_index_for_color(foreground,
-                                                                             background)))
-
     def _render_mode_line(self, is_active):
         bname = self._buffer.buffer_name()
         mline = ('  %s' + (' ' * (self.dimensions[1] - len(bname) - 2))) % bname
@@ -78,31 +119,12 @@ class Window(object):
         )) | curses.A_BOLD
         self._handle.insstr(self.dimensions[0], 0, mline, attr)
 
-    def _render_line_part(self, line_part, soft_tabs, row, col=0,
-                          foreground='default', background='default', attributes=0):
-        _col = col
-        if isinstance(line_part, str):
-            prepared = line_part.replace('\t', soft_tabs)[:(self.dimensions[1] - _col)]
-            self._add_string(row, _col, prepared, foreground, background, attributes)
-            _col += len(prepared)
-        elif isinstance(line_part, list):
-            for sub_part in line_part:
-                _col = self._render_line_part(sub_part, soft_tabs, row, _col,
-                                              foreground, background, attributes)
-        elif isinstance(line_part, dict):
-            new_foreground = line_part.get('foreground', foreground)
-            new_background = line_part.get('background', background)
-            new_attributes = line_part.get('attributes', attributes)
-            _col = self._render_line_part(line_part['content'], soft_tabs, row, _col,
-                                          new_foreground, new_background, new_attributes)
-        return _col
-
     def _render_buffer(self):
         soft_tabs = ' ' * core.Core().get_variable(['tab-stop'])
         self._handle.move(0, 0)
         for idx, row in enumerate(self._buffer.get_lines(self)):
             self._handle.move(idx, 0)
-            _col = self._render_line_part(row, soft_tabs, idx)
+            _col = self._render_line(row, soft_tabs, idx)
             # Clear with background color
             if isinstance(row, dict):
                 rest = self.dimensions[1] - _col
@@ -135,7 +157,7 @@ class WindowManager(object):
     def _init_root(self):
         max_y, max_x = self._screen.getmaxyx()
         dim = (max_y - 1, max_x, 0, 0)
-        w = Window(self._core, self._core.buffers[0], dim)
+        w = Window(self._core, dim, self._core.buffers[0])
         self._windows[id(w)] = {
             'wm_type':    'window',
             'dimensions': dim,
@@ -193,6 +215,18 @@ class WindowManager(object):
         self._selected_window['content'].sync_state_to_buffer()
         return window
 
+    # def divider_up(self, window):
+    #     _window = self._windows[id(window)]
+    #     while _window and _window['wm_type'] != 'bsplit':
+    #         _window = _window['parent']
+    #     new_size = _window['content'][0]['dimensions'][0] - 1
+    #     if (new_size < )
+    #     dim = self._get_vertical_dimensions(_window['dimensions'],
+    #                                         new_size)
+    #     for i in range(0, 2):
+    #         _window['content'][i]['dimensions'] = dim[i]
+    #         self._resize_window_tree(_window['content'][i])
+
     def find_window(self, predicate):
         for w in self._iterate_windows():
             if predicate(w['content']):
@@ -205,38 +239,42 @@ class WindowManager(object):
     def select_next_window(self):
         self.select_window(self._next_window()['content'])
 
-    def _get_vertical_dimensions(self, parent_dimension):
-        # TODO ratio
+    def _get_vertical_dimensions(self, parent_dimension, first_size):
         return (
-            (int(math.ceil(parent_dimension[0] * .5)),
+            (first_size,
              parent_dimension[1],
              parent_dimension[2],
              parent_dimension[3]),
-            (int(math.floor(parent_dimension[0] * .5)),
+            (parent_dimension[0] - first_size,
              parent_dimension[1],
-             parent_dimension[2] +
-             int(math.ceil(parent_dimension[0] * .5)),
+             parent_dimension[2] + first_size,
              parent_dimension[3])
         )
 
-    def _get_horizontal_dimensions(self, parent_dimension):
-        # TODO ratio
+    def _get_vertical_dimensions_by_ratio(self, parent_dimension, ratio=.5):
+        return self._get_vertical_dimensions(parent_dimension,
+                                             int(math.ceil(parent_dimension[0] * ratio)))
+
+    def _get_horizontal_dimensions(self, parent_dimension, first_size):
         return (
             (parent_dimension[0],
-             int(math.floor(parent_dimension[1] * .5)),
+             first_size,
              parent_dimension[2],
              parent_dimension[3]),
             (parent_dimension[0],
-             int(math.ceil(parent_dimension[1] * .5)) - 1,
+             parent_dimension[1] - first_size - 1,
              parent_dimension[2],
-             parent_dimension[3] +
-             int(math.floor(parent_dimension[1] * .5)) + 1)
+             parent_dimension[3] + first_size + 1)
         )
 
-    def _get_dimensions(self, split_type, parent_dimension):
-        return (self._get_vertical_dimensions
+    def _get_horizontal_dimensions_by_ratio(self, parent_dimension, ratio=.5):
+        return self._get_horizontal_dimensions(parent_dimension,
+                                               int(math.floor(parent_dimension[1] * ratio)))
+
+    def _get_dimensions(self, split_type, parent_dimension, ratio=.5):
+        return (self._get_vertical_dimensions_by_ratio
                 if split_type == 'bsplit' else
-                self._get_horizontal_dimensions)(parent_dimension)
+                self._get_horizontal_dimensions_by_ratio)(parent_dimension, ratio)
 
     def _check_dimension(self, d):
         return d[0] < MIN_WINDOW_HEIGHT or d[1] < MIN_WINDOW_WIDTH
@@ -247,11 +285,11 @@ class WindowManager(object):
             self._core.message("Can not split. Dimensions too small.")
             return None
 
-        new_win = Window(self._core, self._selected_window['content'].buffer(), d2)
+        new_win = Window(self._core, d2, self._selected_window['content'].buffer())
         w1 = {
             'wm_type':    self._selected_window['wm_type'],
             'dimensions': d1,
-            'content':    self._selected_window['content'].update_dimensions(d1),
+            'content':    self._selected_window['content']._update_dimensions(d1),
             'parent':     self._selected_window
         }
         w2 = {
@@ -301,7 +339,7 @@ class WindowManager(object):
 
     def _resize_window_tree(self, window):
         if window['wm_type'] == 'window':
-            window['content'].update_dimensions(window['dimensions'])
+            window['content']._update_dimensions(window['dimensions'])
         else:
             d1, d2 = self._get_dimensions(window['wm_type'], window['dimensions'])
             window['content'][0]['dimensions'] = d1
@@ -318,8 +356,8 @@ class WindowManager(object):
                                                                                'default')))
 
     def render(self):
-        for w in self._iterate_windows():
-            w['content'].render(w == self._selected_window)
         for w in self._iterate_windows(yield_window=False, yield_rsplit=True):
             self._render_rsplit(w)
         self._screen.noutrefresh()
+        for w in self._iterate_windows():
+            w['content'].render(w == self._selected_window)

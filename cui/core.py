@@ -10,7 +10,7 @@ from cui.logger import Logger
 from cui.keymap import WithKeymap
 from cui.util import deep_get, deep_put
 from cui.colors import ColorCore
-from cui.windows import WindowManager
+from cui.windows import WindowManager, MiniBuffer
 from cui.singleton import Singleton, combine_meta_classes
 
 __all__ = ['init_func', 'Core']
@@ -40,8 +40,8 @@ def bye():
 
 # Logging
 
-def message(msg):
-    return Core().logger.log(msg)
+def message(msg, show_log=True, log_message=None):
+    return Core().message(msg, show_log, log_message)
 
 # Colors
 
@@ -177,8 +177,12 @@ class Core(WithKeymap,
         atexit.register(self._at_exit)
         _init_state(self)
 
-    def message(self, msg):
+    def message(self, msg, show_log=True, log_message=None):
         self._mini_buffer = msg
+        if log_message:
+            self.logger.log(log_message)
+        elif show_log:
+            self.logger.log(msg)
 
     def get_buffer(self, buffer_class, *args):
         buffer_name = buffer_class.name(*args)
@@ -265,12 +269,10 @@ class Core(WithKeymap,
         self._screen.refresh()
         self.add_exit_handler(self._quit_curses)
         self._wm = WindowManager(self, self._screen)
-
-        max_y, max_x = self._screen.getmaxyx()
-        self._mini_buffer_win = curses.newwin(1, max_x, max_y - 1, 0)
+        self._mini_buffer_win = MiniBuffer(self, self._screen)
 
     def _quit_curses(self):
-        del self._mini_buffer_win
+        self._mini_buffer_win = None
         curses.resetty()
         curses.endwin()
 
@@ -279,40 +281,36 @@ class Core(WithKeymap,
             try:
                 fn()
             except:
-                self.logger.log('init-function %s failed:\n%s'
-                                % (fn.__name__, traceback.format_exc()))
+                self.message('init-function %s failed:\n%s'
+                             % (fn.__name__, traceback.format_exc()))
 
     def _post_init_packages(self):
         for fn in Core.__post_init_functions__:
             try:
                 fn()
             except:
-                self.logger.log('post-init-function %s failed:\n%s'
-                                % (fn.__name__, traceback.format_exc()))
+                self.message('post-init-function %s failed:\n%s'
+                             % (fn.__name__, traceback.format_exc()))
 
     def _update_packages(self):
         for fn in Core.__update_functions__:
             try:
                 fn()
             except:
-                self.logger.log('update-function %s failed:\n%s'
-                                % (fn.__name__, traceback.format_exc()))
+                self.message('update-function %s failed:\n%s'
+                             % (fn.__name__, traceback.format_exc()))
 
     def _update_ui(self):
         self._wm.render()
-        self._render_mini_buffer()
+        self._mini_buffer_win.render()
         curses.doupdate()
 
-    def _render_mini_buffer(self):
-        max_y, max_x = self._mini_buffer_win.getmaxyx()
-        self._mini_buffer_win.addstr(0, 0, self._mini_buffer[:max_x - 1])
-        self._mini_buffer_win.clrtoeol()
-        self._mini_buffer_win.noutrefresh()
+    @property
+    def mini_buffer(self):
+        return self._mini_buffer
 
     def _handle_resize(self):
-        max_y, max_x = self._screen.getmaxyx()
-        self._mini_buffer_win.resize(1, max_x)
-        self._mini_buffer_win.mvwin(max_y - 1, 0)
+        self._mini_buffer_win.resize()
         self._wm.resize()
 
     def bye(self):
@@ -333,22 +331,33 @@ class Core(WithKeymap,
                 b.prepare()
             self._update_ui()
 
-            kc = keyreader.read_keychord(self._screen,
-                                         self.get_variable(['core', 'read-timeout']))
+            current_buffer = self.current_buffer()
+            input_timeout = self.get_variable(['core', 'read-timeout'])
+            kc, is_input = keyreader.read_keychord(self._screen,
+                                                   input_timeout,
+                                                   current_buffer.takes_input)
             if kc is not None:
                 if kc == keyreader.EVT_RESIZE:
                     self._handle_resize()
                 else:
                     try:
                         self._current_keychord.append(kc)
-                        self._mini_buffer = ' '.join(self._current_keychord)
                         is_keychord_handled = self.handle_input(self._current_keychord)
                         if is_keychord_handled:
+                            # current_keychord was handled via keymap
+                            self._current_keychord = []
+                        elif is_input and len(self._current_keychord) == 1:
+                            # kc is direct input that was not handled and beginning of sequence
+                            current_buffer.insert_chars(kc)
                             self._current_keychord = []
                         elif is_keychord_handled is None:
-                            self._mini_buffer = 'Unknown keychord: %s' % ' '.join(self._current_keychord)
+                            # current_keychord is no suffix for
+                            self.message('Unknown keychord: %s' % ' '.join(self._current_keychord))
                             self._current_keychord = []
+                        else:
+                            self.message(' '.join(self._current_keychord), show_log=False)
                     except:
+                        # TODO use message, separate minibuffer message and log message
                         self.logger.log(traceback.format_exc())
                         self._current_keychord = []
 
