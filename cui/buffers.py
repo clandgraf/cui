@@ -326,8 +326,12 @@ class ConsoleBuffer(ScrollableBuffer):
                 self._buffer]
 
     def get_lines(self, window):
-        first_row = self.get_variable(['win/buf', 'first-row'])
-        yield from iter(self._chistory[first_row:])
+        if window == core.selected_window() and self._to_bottom:
+            first_row = max(self.line_count() - window.dimensions[0], 0)
+            self.set_variable(['win/buf', 'first-row'], first_row)
+            self._to_bottom = False
+
+        yield from iter(self._chistory[window._state['first-row']:])
         yield self.buffer_line(cursor=True)
 
     def line_count(self):
