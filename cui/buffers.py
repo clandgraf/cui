@@ -82,21 +82,15 @@ class Buffer(WithKeymap):
         pass
 
 
-class ListBuffer(Buffer):
+class ScrollableBuffer(Buffer):
     __keymap__ = {
-        '<up>':     lambda: core.Core().current_buffer().item_up(),
-        '<down>':   lambda: core.Core().current_buffer().item_down(),
-        'S-<up>':   lambda: core.Core().current_buffer().scroll_up(),
-        'S-<down>': lambda: core.Core().current_buffer().scroll_down(),
-        'C-l':      lambda: core.Core().current_buffer().recenter(),
-        'C-j':      lambda: core.Core().current_buffer().on_item_selected()
+        'S-<up>':   with_current_buffer(lambda b: b.scroll_up()),
+        'S-<down>': with_current_buffer(lambda b: b.scroll_down())
     }
 
     def __init__(self, *args):
-        super(ListBuffer, self).__init__(*args)
-        self._item_height = 1
+        super(ScrollableBuffer, self).__init__(*args)
         self.def_variable(['win/buf', 'first-row'], 0)
-        self.def_variable(['win/buf', 'selected-item'], 0)
 
     def scroll_up(self):
         first_row = self.get_variable(['win/buf', 'first-row'])
@@ -109,6 +103,20 @@ class ListBuffer(Buffer):
         if first_row + 4 < self.line_count():
             self.set_variable(['win/buf', 'first-row'],
                               first_row + 1)
+
+
+class ListBuffer(ScrollableBuffer):
+    __keymap__ = {
+        '<up>':     lambda: core.Core().current_buffer().item_up(),
+        '<down>':   lambda: core.Core().current_buffer().item_down(),
+        'C-l':      lambda: core.Core().current_buffer().recenter(),
+        'C-j':      lambda: core.Core().current_buffer().on_item_selected()
+    }
+
+    def __init__(self, *args):
+        super(ListBuffer, self).__init__(*args)
+        self._item_height = 1
+        self.def_variable(['win/buf', 'selected-item'], 0)
 
     @with_window
     def recenter(self, window, out_of_bounds=False):
@@ -267,7 +275,7 @@ def delete_prev_char(buf):
         buf.delete_chars(1)
 
 
-class ConsoleBuffer(Buffer):
+class ConsoleBuffer(ScrollableBuffer):
     __keymap__ = {
         'C-j': with_current_buffer(lambda buf: buf.send_current_buffer()),
         'C-?': delete_prev_char,
@@ -282,6 +290,7 @@ class ConsoleBuffer(Buffer):
         self._buffer = ''
         self._cursor = 0
         self.prompt = '> '
+        self._to_bottom = False
 
     @property
     def takes_input(self):
@@ -317,7 +326,8 @@ class ConsoleBuffer(Buffer):
                 self._buffer]
 
     def get_lines(self, window):
-        yield from iter(self._chistory)
+        first_row = self.get_variable(['win/buf', 'first-row'])
+        yield from iter(self._chistory[first_row:])
         yield self.buffer_line(cursor=True)
 
     def line_count(self):
@@ -329,6 +339,11 @@ class ConsoleBuffer(Buffer):
         self._buffer = ''
         self._cursor = 0
         self.on_send_current_buffer(b)
+        self._to_bottom = True
+
+    def extend(self, *args):
+        self._chistory.extend(args)
+        self._to_bottom = True
 
     def on_send_current_buffer(self, b):
         pass

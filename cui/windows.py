@@ -1,4 +1,5 @@
 import curses
+import itertools
 import math
 
 from cui.util import deep_put
@@ -122,7 +123,8 @@ class Window(WindowBase):
     def _render_buffer(self):
         soft_tabs = ' ' * core.Core().get_variable(['tab-stop'])
         self._handle.move(0, 0)
-        for idx, row in enumerate(self._buffer.get_lines(self)):
+        for idx, row in itertools.islice(enumerate(self._buffer.get_lines(self)),
+                                          self.dimensions[0]):
             self._handle.move(idx, 0)
             _col = self._render_line(row, soft_tabs, idx)
             # Clear with background color

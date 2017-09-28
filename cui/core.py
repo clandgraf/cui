@@ -96,19 +96,19 @@ def get_buffer(buffer_class, *args):
 def create_buffer(buffer_class, *args):
     return Core().create_buffer(buffer_class, *args)
 
-def with_buffer(fn):
+def with_created_buffer(fn):
     def _fn(buffer_class, *args, **kwargs):
         return fn(create_buffer(buffer_class, *args), **kwargs)
     return _fn
 
-@with_buffer
+@with_created_buffer
 def switch_buffer(buffer_object):
     return select_buffer(buffer_object)
 
 def buffer_window(buffer_object):
     return find_window(lambda w: w.buffer() == buffer_object)
 
-@with_buffer
+@with_created_buffer
 def buffer_visible(buffer_object, split_method=split_window_below):
     win = buffer_window(buffer_object)
     if not win:

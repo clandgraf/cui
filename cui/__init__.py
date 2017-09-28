@@ -8,12 +8,23 @@ from cui.core import \
     select_window, selected_window, find_window, split_window_below, split_window_right, \
     get_buffer, select_buffer, switch_buffer, current_buffer, buffer_window, buffer_visible
 from cui import buffers
+from cui.buffers import with_current_buffer
 
 @contextmanager
 def window_selected(window):
     old_window = selected_window()
     yield select_window(window)
     select_window(old_window)
+
+def exec_in_buffer_visible(expr, buffer_class, *args, **kwargs):
+    window, buffer_object = buffer_visible(buffer_class, *args, **kwargs)
+    with window_selected(window):
+        expr(buffer_object)
+
+def exec_if_buffer_exists(expr, buffer_class, *args):
+    buffer_object = get_buffer(buffer_class, *args)
+    if buffer_object:
+        expr(buffer_object)
 
 __all__ = [
     'init_func',
@@ -43,6 +54,9 @@ __all__ = [
     'switch_buffer',
     'buffer_window',
     'buffer_visible',
+
+    'exec_in_buffer_visible',
+    'exec_if_buffer_exists',
 
     'buffers'
 ]
