@@ -39,6 +39,31 @@ class Keymap(object):
             self.__setitem__(parse_keychord_string(key),
                              keymap[key])
 
+    def flattened(self):
+        # TODO must include parent classes keymaps
+        flat = {}
+        kstack = [{'keymap': self._keymap, 'keys': list(self._keymap.keys())}]
+        prefix = []
+        while kstack:
+            while kstack[0]['keys']:
+                current_key = kstack[0]['keys'].pop(0)
+                prefix.append(current_key)
+                keymap_or_fn = kstack[0]['keymap'][current_key]
+                if isinstance(keymap_or_fn, dict):
+                    kstack.insert(0, {'keymap': keymap_or_fn, 'keys': list(keymap_or_fn.keys())})
+                    break
+                else:
+                    flat[' '.join(prefix)] = keymap_or_fn
+                    prefix.pop(-1)
+            else:
+                kstack.pop(0)
+                if len(kstack):
+                    prefix.pop(-1)
+        if self.super_:
+            flat.update(self.super_.__keymap__.flattened())
+        return flat
+
+
     def __getitem__(self, keychords):
         fn = deep_get(self._keymap, keychords)
         if fn is None and self.super_:

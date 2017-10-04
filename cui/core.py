@@ -36,6 +36,7 @@ def update_func(fn):
     return fn
 
 def bye():
+    """Quit this program."""
     Core().bye()
 
 # Logging
@@ -77,17 +78,25 @@ def selected_window():
     return Core().selected_window()
 
 def split_window_below():
+    """Split this window and create a new one below it."""
     return Core().split_window_below()
 
 def split_window_right():
+    """Split this window and create a new one to the right of it."""
     return Core().split_window_right()
 
 # Buffers
 
 def current_buffer():
+    """Return the buffer in the selected window."""
     return Core().current_buffer()
 
+def next_buffer():
+    """Switch to the next buffer in the selected window."""
+    return Core().next_buffer()
+
 def select_buffer(buffer_object):
+    """Make buffer_object the buffer in the current window"""
     return Core().select_buffer(buffer_object)
 
 def get_buffer(buffer_class, *args):
@@ -109,12 +118,15 @@ def buffer_window(buffer_object):
     return find_window(lambda w: w.buffer() == buffer_object)
 
 @with_created_buffer
-def buffer_visible(buffer_object, split_method=split_window_below):
+def buffer_visible(buffer_object, split_method=split_window_below, to_window=False):
     win = buffer_window(buffer_object)
     if not win:
         win = split_method()
         if win:
             win.set_buffer(buffer_object)
+    if win and to_window:
+        select_window(win)
+
     return (win, buffer_object)
 
 # ==============================================================================
@@ -158,7 +170,7 @@ class Core(WithKeymap,
         "C-x 3":   split_window_right,
         "C-x 0":   lambda: Core()._wm.delete_selected_window(),
         "C-x o":   lambda: Core()._wm.select_next_window(),
-        "C-i":     lambda: Core().next_buffer(),
+        "C-i":     next_buffer,
         "C-w":     log_windows,
         "C-x C-b": lambda: switch_buffer(BufferListBuffer)
     }
@@ -327,8 +339,6 @@ class Core(WithKeymap,
         self._running = True
         while self._running:
             self._update_packages()
-            for b in self.buffers:
-                b.prepare()
             self._update_ui()
 
             current_buffer = self.current_buffer()

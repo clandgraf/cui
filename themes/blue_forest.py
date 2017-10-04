@@ -17,3 +17,8 @@ cui.def_foreground('modeline_inactive', 'magenta')
 cui.def_background('modeline_inactive', 'med_teal')
 cui.def_foreground('selection',         None)
 cui.def_background('selection',         'light_teal')
+cui.def_foreground('divider',           'light_teal')
+
+cui.def_foreground('comment',         'dark_grey')  # TODO use default color
+cui.def_foreground('string_escape',   'dark_grey')
+cui.def_foreground('string_interpol', 'dark_grey')

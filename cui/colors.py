@@ -21,6 +21,7 @@ FGCOL_MAP = {
     'modeline_active':   'black',
     'modeline_inactive': 'white',
     'special':           'black',
+    'divider':           'white',
 
     'error':             'red',
     'info':              'green'

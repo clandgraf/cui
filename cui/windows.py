@@ -121,6 +121,7 @@ class Window(WindowBase):
         self._handle.insstr(self.dimensions[0], 0, mline, attr)
 
     def _render_buffer(self):
+        self._buffer.on_pre_render()
         soft_tabs = ' ' * core.Core().get_variable(['tab-stop'])
         self._handle.move(0, 0)
         for idx, row in itertools.islice(enumerate(self._buffer.get_lines(self)),
@@ -354,7 +355,7 @@ class WindowManager(object):
         row = w['dimensions'][2]
         for r in range(0, w['dimensions'][0]):
             self._screen.addch(row + r, col, ord('|'),
-                               curses.color_pair(self._core.get_index_for_type('default',
+                               curses.color_pair(self._core.get_index_for_type('divider',
                                                                                'default')))
 
     def render(self):

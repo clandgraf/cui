@@ -1,4 +1,5 @@
 import curses
+import functools
 import itertools
 
 from cui.util import get_base_classes, deep_get, deep_put, minmax
@@ -11,12 +12,12 @@ def pad_left(width, string):
         return '%s%s' % ('...', string[-(width - 3):])
     return string
 
-
 def with_window(f):
     """Decorator that runs function only if buffer is in selected window.
     Note that this modifies the argument list of f, inserting window as
     second positional argument.
     """
+    @functools.wraps(f)
     def _with_window(*args, **kwargs):
         self = args[0]
         win = self.window()
@@ -24,15 +25,22 @@ def with_window(f):
             f(args[0], win, *args[1:], **kwargs)
     return _with_window
 
-
 def with_current_buffer(fn):
+    @functools.wraps(fn)
     def _fn():
         return fn(core.Core().current_buffer())
     return _fn
 
 
+@with_current_buffer
+def display_help(buffer_object):
+    """Display a help buffer"""
+    return core.buffer_visible(HelpBuffer, buffer_object.__class__, to_window=True)
+
 class Buffer(WithKeymap):
-    __keymap__ = {}
+    __keymap__ = {
+        'C-_': display_help
+    }
 
     @classmethod
     def name(cls, *args):
@@ -72,7 +80,7 @@ class Buffer(WithKeymap):
     def send_input(self, string):
         pass
 
-    def prepare(self):
+    def on_pre_render(self):
         pass
 
     def line_count(self):
@@ -82,10 +90,20 @@ class Buffer(WithKeymap):
         pass
 
 
+@with_current_buffer
+def scroll_up(b):
+    """Scroll current buffer up."""
+    b.scroll_up()
+
+@with_current_buffer
+def scroll_down(b):
+    """Scroll current buffer down."""
+    b.scroll_down()
+
 class ScrollableBuffer(Buffer):
     __keymap__ = {
-        'S-<up>':   with_current_buffer(lambda b: b.scroll_up()),
-        'S-<down>': with_current_buffer(lambda b: b.scroll_down())
+        'S-<up>':   scroll_up,
+        'S-<down>': scroll_down
     }
 
     def __init__(self, *args):
@@ -105,12 +123,32 @@ class ScrollableBuffer(Buffer):
                               first_row + 1)
 
 
+@with_current_buffer
+def previous_item(b):
+    """Select the previous item."""
+    b.item_up()
+
+@with_current_buffer
+def next_item(b):
+    """Select the next item."""
+    b.item_down()
+
+@with_current_buffer
+def select_item(b):
+    """Invoke main action on the selected item."""
+    b.on_item_selected()
+
+@with_current_buffer
+def recenter_selection(b):
+    """Recenter selection the current buffer."""
+    b.recenter()
+
 class ListBuffer(ScrollableBuffer):
     __keymap__ = {
-        '<up>':     lambda: core.Core().current_buffer().item_up(),
-        '<down>':   lambda: core.Core().current_buffer().item_down(),
-        'C-l':      lambda: core.Core().current_buffer().recenter(),
-        'C-j':      lambda: core.Core().current_buffer().on_item_selected()
+        '<up>':     previous_item,
+        '<down>':   next_item,
+        'C-l':      recenter_selection,
+        'C-j':      select_item
     }
 
     def __init__(self, *args):
@@ -187,7 +225,7 @@ class ListBuffer(ScrollableBuffer):
 
 class LogBuffer(ListBuffer):
     @classmethod
-    def name(cls, *args):
+    def name(cls):
         return "Logger"
 
     def items(self):
@@ -195,6 +233,33 @@ class LogBuffer(ListBuffer):
 
     def render_item(self, window, item, index):
         return item.split('\n', self._item_height)[:self._item_height]
+
+
+class HelpBuffer(ListBuffer):
+    @classmethod
+    def name(cls, buffer_class):
+        return "Help: %s" % buffer_class.__name__
+
+    def __init__(self, buffer_class):
+        super(HelpBuffer, self).__init__(buffer_class)
+        self._buffer_class = buffer_class
+        self._item_height = 2
+        self._update_items()
+
+    def _update_items(self):
+        keymap = self._buffer_class.__keymap__.flattened()
+        self._items = [[[{'content': '%s' % k, 'attributes': curses.A_BOLD},
+                         ': %s' % (v.__name__)],
+                        '  %s' % (v.__doc__ or '<No documentation>').split('\n', 1)[0]]
+                       for k, v in keymap.items()]
+        if self._buffer_class.__doc__:
+            self._items = self._buffer_class.__doc__.split('\n') + ['']
+
+    def items(self):
+        return self._items
+
+    def render_item(self, window, item, index):
+        return item
 
 
 class BufferListBuffer(ListBuffer):
@@ -223,7 +288,7 @@ class TreeBuffer(ListBuffer):
     def get_roots(self):
         return []
 
-    def prepare(self):
+    def on_pre_render(self):
         self._flattened = []
         node_stack = list(map(lambda n: {'item': n, 'depth': 0},
                               self.get_roots()))
@@ -273,7 +338,6 @@ def delete_next_char(buf):
 def delete_prev_char(buf):
     if prev_char():
         buf.delete_chars(1)
-
 
 class ConsoleBuffer(ScrollableBuffer):
     __keymap__ = {
