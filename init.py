@@ -7,5 +7,5 @@ import pydevds
 import tomorrow_night_eighties
 import cui
 
-cui.buffer_visible(cui.buffers.TestConsoleBuffer,
-                   split_method=cui.split_window_right)
+#cui.buffer_visible(cui.buffers.TestConsoleBuffer,
+#                   split_method=cui.split_window_right)

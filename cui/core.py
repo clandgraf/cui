@@ -93,7 +93,7 @@ def current_buffer():
 
 def next_buffer():
     """Switch to the next buffer in the selected window."""
-    return Core().next_buffer()
+    return Core().switch_to_next_buffer()
 
 def select_buffer(buffer_object):
     """Make buffer_object the buffer in the current window"""
@@ -104,6 +104,11 @@ def get_buffer(buffer_class, *args):
 
 def create_buffer(buffer_class, *args):
     return Core().create_buffer(buffer_class, *args)
+
+def kill_current_buffer():
+    """Kill the current buffer."""
+    c = Core()
+    c.kill_buffer(c.current_buffer())
 
 def with_created_buffer(fn):
     def _fn(buffer_class, *args, **kwargs):
@@ -172,13 +177,14 @@ class Core(WithKeymap,
         "C-x o":   lambda: Core()._wm.select_next_window(),
         "C-i":     next_buffer,
         "C-w":     log_windows,
+        "C-x C-k": kill_current_buffer,
         "C-x C-b": lambda: switch_buffer(BufferListBuffer)
     }
 
     def __init__(self):
         super(Core, self).__init__()
         self.logger = Logger()
-        self.buffers = [LogBuffer(), BufferListBuffer()]
+        self.buffers = [LogBuffer()]
         self._state = {}
         self._screen = None
         self._exit_handlers = []
@@ -218,10 +224,19 @@ class Core(WithKeymap,
         if buffer_object:
             self.selected_window().set_buffer(buffer_object)
 
-    def next_buffer(self):
-        w = self.selected_window()
-        next_index = (self.buffers.index(w.buffer()) + 1) % len(self.buffers)
-        w.set_buffer(self.buffers[next_index])
+    def _find_next_buffer(self, buffer_object):
+        return self.buffers[(self.buffers.index(buffer_object) + 1) % len(self.buffers)]
+
+    def switch_to_next_buffer(self, buffer_object=None):
+        selected_window = self.selected_window()
+        selected_window.set_buffer(self._find_next_buffer(selected_window.buffer()))
+
+    def kill_buffer(self, buffer_object):
+        self._wm.replace_buffer(buffer_object, self._find_next_buffer(buffer_object))
+        self.buffers.remove(buffer_object)
+
+        if len(self.buffers) == 0:  # Ensure we always have a buffer available
+            switch_buffer(LogBuffer)
 
     def current_buffer(self):
         return self._wm.selected_window().buffer()

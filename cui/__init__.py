@@ -1,5 +1,6 @@
 from contextlib import contextmanager
 
+from cui import core
 from cui.core import \
     init_func, update_func, post_init_func, \
     message, \
@@ -25,6 +26,9 @@ def exec_if_buffer_exists(expr, buffer_class, *args):
     buffer_object = get_buffer(buffer_class, *args)
     if buffer_object:
         expr(buffer_object)
+
+def kill_buffer(buffer_class, *args):
+    exec_if_buffer_exists(lambda b: core.Core().kill_buffer(buffer_object))
 
 __all__ = [
     'init_func',

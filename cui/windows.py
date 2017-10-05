@@ -174,6 +174,11 @@ class WindowManager(object):
         self._root['dimensions'] = (max_y - 1, max_x, 0, 0)
         self._resize_window_tree(self._root)
 
+    def replace_buffer(self, old_buffer_object, new_buffer_object):
+        for w in (w['content'] for w in self._iterate_windows()):
+            if w.buffer() == old_buffer_object:
+                w.set_buffer(new_buffer_object)
+
     def _iterate_windows(self, first_window=None,
                          yield_window=True, yield_rsplit=False, yield_bsplit=False):
         win_stack = [self._root]
@@ -321,6 +326,7 @@ class WindowManager(object):
             self._core.message("Can not delete last window.")
             return
 
+        next_window = self._next_window()['content']
         del self._windows[id(self._selected_window['content'])]
 
         parent = self._selected_window['parent']
@@ -337,8 +343,8 @@ class WindowManager(object):
             self._windows[id(parent['content'])] = parent
         self._resize_window_tree(parent)
 
-        # FIXME this is not optimal
-        self.select_window(next(self._iterate_windows())['content'])
+        # FIXME this should be previous window
+        self.select_window(next_window)
 
     def _resize_window_tree(self, window):
         if window['wm_type'] == 'window':

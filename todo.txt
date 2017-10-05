@@ -3,9 +3,13 @@
 TODO
 ====
 
- --> Factor out window base class to use for minibuffer.
-     -> cui.message should be able to use _render_line_part
-     -> cui.message should only render first line of input to minibuffer
+ --> Create Frames: WindowManager -> Frame -> Window
+
+ --> Kill Buffers: Remove from buffer-list, set_buffer(sth.else) in all windows that display it
+     --> Help Buffer: q -> delete buffer, delete frame
+     --> pydevds Close all associated buffers when session terminates
+
+ --> Deleting windows: Focus last window in window order
 
  --> API: resize windows, ratio may be suboptimal here, wm.resize-calls should be able to
      handle columns/rows as input
