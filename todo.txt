@@ -3,6 +3,8 @@
 TODO
 ====
 
+ --> remove session parameter in Threadbased buffers, use thread.session
+
  --> Create Frames: WindowManager -> Frame -> Window
 
  --> Kill Buffers:

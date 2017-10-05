@@ -30,7 +30,8 @@ def exec_if_buffer_exists(expr, buffer_class, *args):
         expr(buffer_object)
 
 def kill_buffer(buffer_class, *args):
-    exec_if_buffer_exists(lambda b: core.Core().kill_buffer(buffer_object))
+    exec_if_buffer_exists(lambda b: core.Core().kill_buffer(b),
+                          buffer_class, *args)
 
 __all__ = [
     'init_func',
