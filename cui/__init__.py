@@ -6,8 +6,10 @@ from cui.core import \
     message, \
     def_colors, def_foreground, def_background, \
     def_variable, get_variable, set_variable, \
-    select_window, selected_window, find_window, split_window_below, split_window_right, \
-    get_buffer, select_buffer, switch_buffer, current_buffer, buffer_window, buffer_visible
+    select_window, selected_window, delete_selected_window, find_window, split_window_below, \
+    split_window_right, \
+    get_buffer, select_buffer, switch_buffer, current_buffer, buffer_window, buffer_visible, \
+    kill_current_buffer
 from cui import buffers
 from cui.buffers import with_current_buffer
 
@@ -47,6 +49,7 @@ __all__ = [
 
     'select_window',
     'selected_window',
+    'delete_selected_window',
     'window_selected',
     'find_window',
     'split_window_below',
@@ -58,6 +61,8 @@ __all__ = [
     'switch_buffer',
     'buffer_window',
     'buffer_visible',
+    'kill_buffer',
+    'kill_current_buffer',
 
     'exec_in_buffer_visible',
     'exec_if_buffer_exists',

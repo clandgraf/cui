@@ -32,6 +32,12 @@ def with_current_buffer(fn):
     return _fn
 
 
+def close_buffer():
+    """Kill current buffer and delete selected window."""
+    core.kill_current_buffer()
+    core.delete_selected_window()
+
+
 @with_current_buffer
 def display_help(buffer_object):
     """Display a help buffer"""
@@ -236,6 +242,10 @@ class LogBuffer(ListBuffer):
 
 
 class HelpBuffer(ListBuffer):
+    __keymap__ = {
+        'q': close_buffer
+    }
+
     @classmethod
     def name(cls, buffer_class):
         return "Help: %s" % buffer_class.__name__

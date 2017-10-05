@@ -5,11 +5,12 @@ TODO
 
  --> Create Frames: WindowManager -> Frame -> Window
 
- --> Kill Buffers: Remove from buffer-list, set_buffer(sth.else) in all windows that display it
-     --> Help Buffer: q -> delete buffer, delete frame
+ --> Kill Buffers:
      --> pydevds Close all associated buffers when session terminates
 
- --> Deleting windows: Focus last window in window order
+ --> Pydevds Layouting in user definable hook
+
+ --> Deleting windows: Focus previous window in window order
 
  --> API: resize windows, ratio may be suboptimal here, wm.resize-calls should be able to
      handle columns/rows as input

@@ -77,6 +77,9 @@ def find_window(predicate):
 def selected_window():
     return Core().selected_window()
 
+def delete_selected_window():
+    return Core().delete_selected_window()
+
 def split_window_below():
     """Split this window and create a new one below it."""
     return Core().split_window_below()
@@ -255,6 +258,9 @@ class Core(WithKeymap,
 
     def select_window(self, window):
         return self._wm.select_window(window)
+
+    def delete_selected_window(self):
+        self._wm.delete_selected_window()
 
     def split_window_below(self):
         return self._wm.split_window_below()
