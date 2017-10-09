@@ -346,6 +346,11 @@ class WindowManager(object):
         # FIXME this should be previous window
         self.select_window(next_window)
 
+    def delete_all_windows(self):
+        self._root = self._selected_window
+        self._windows = {id(self._root['content']): self._root}
+        self.resize()
+
     def _resize_window_tree(self, window):
         if window['wm_type'] == 'window':
             window['content']._update_dimensions(window['dimensions'])

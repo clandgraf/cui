@@ -3,7 +3,14 @@
 TODO
 ====
 
- --> remove session parameter in Threadbased buffers, use thread.session
+ --> Bug when ThreadBufferMixin is last in list:
+       'CodeBuffer' object has no attribute 'set_frame'
+
+ --> remove D_Frame class use dict instead
+
+ --> Move generic Server-Session handling code to cui.tools
+     --> Raise exception when socket is not detected as closed, but read returns len == 0
+         terminate session
 
  --> Create Frames: WindowManager -> Frame -> Window
 
@@ -16,10 +23,6 @@ TODO
 
  --> API: resize windows, ratio may be suboptimal here, wm.resize-calls should be able to
      handle columns/rows as input
-
- --> API: cui.message(log=True)
-     Write message to minibuffer. Additional parameter that determines wether message
-     is written to LogBuffer. Default is true
 
  --> API: Variable Access
      set_localvar: if value is defined in buffer, set in buffer else error

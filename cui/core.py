@@ -80,6 +80,9 @@ def selected_window():
 def delete_selected_window():
     return Core().delete_selected_window()
 
+def delete_all_windows():
+    return Core().delete_all_windows()
+
 def split_window_below():
     """Split this window and create a new one below it."""
     return Core().split_window_below()
@@ -174,9 +177,10 @@ class Core(WithKeymap,
 
     __keymap__ = {
         "C-x C-c": bye,
+        "C-x 1":   delete_all_windows,
         "C-x 2":   split_window_below,
         "C-x 3":   split_window_right,
-        "C-x 0":   lambda: Core()._wm.delete_selected_window(),
+        "C-x 0":   delete_selected_window,
         "C-x o":   lambda: Core()._wm.select_next_window(),
         "C-i":     next_buffer,
         "C-w":     log_windows,
@@ -261,6 +265,9 @@ class Core(WithKeymap,
 
     def delete_selected_window(self):
         self._wm.delete_selected_window()
+
+    def delete_all_windows(self):
+        self._wm.delete_all_windows()
 
     def split_window_below(self):
         return self._wm.split_window_below()

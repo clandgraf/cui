@@ -32,8 +32,8 @@ def normalize_modifiers(ms):
 
 
 class Keymap(object):
-    def __init__(self, keymap, super_=None):
-        self.super_ = super_
+    def __init__(self, keymap, supers=[]):
+        self.supers = supers
         self._keymap = {}
         for key in keymap:
             self.__setitem__(parse_keychord_string(key),
@@ -42,6 +42,8 @@ class Keymap(object):
     def flattened(self):
         # TODO must include parent classes keymaps
         flat = {}
+        for super_ in self.supers:
+            flat.update(super_.__keymap__.flattened())
         kstack = [{'keymap': self._keymap, 'keys': list(self._keymap.keys())}]
         prefix = []
         while kstack:
@@ -59,16 +61,16 @@ class Keymap(object):
                 kstack.pop(0)
                 if len(kstack):
                     prefix.pop(-1)
-        if self.super_:
-            flat.update(self.super_.__keymap__.flattened())
         return flat
 
 
     def __getitem__(self, keychords):
         fn = deep_get(self._keymap, keychords)
-        if fn is None and self.super_:
-
-            fn = self.super_.__keymap__[keychords]
+        if fn is None:
+            for super_ in self.supers:
+                fn = super_.__keymap__[keychords]
+                if fn:
+                    break
         return fn
 
     def __setitem__(self, keychords, fn):
@@ -84,11 +86,7 @@ class WithKeymapMeta(type):
         """
         # Find base with keymap
         keymap_bases = list(filter(lambda base: isinstance(base, WithKeymapMeta), bases))
-        if len(keymap_bases) > 1:
-            raise TypeError('WithKeymap class should have only one base class with __keymap__')
-
-        cls.__keymap__ = Keymap(dct.get('__keymap__', {}),
-                                keymap_bases[0] if len(keymap_bases) else None)
+        cls.__keymap__ = Keymap(dct.get('__keymap__', {}), keymap_bases)
         super(WithKeymapMeta, cls).__init__(name, bases, dct)
 
 
@@ -96,7 +94,7 @@ class WithKeymap(object, metaclass=WithKeymapMeta):
     """Superclass for objects handling keyboard input.
     """
     def __init__(self):
-        self._keymap = Keymap({}, self.__class__)
+        self._keymap = Keymap({}, [self.__class__])
 
     def input_delegate(self):
         return None

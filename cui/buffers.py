@@ -241,9 +241,11 @@ class LogBuffer(ListBuffer):
         return item.split('\n', self._item_height)[:self._item_height]
 
 
-class HelpBuffer(ListBuffer):
+class HelpBuffer(ScrollableBuffer):
     __keymap__ = {
-        'q': close_buffer
+        'q': close_buffer,
+        '<up>': scroll_up,
+        '<down>': scroll_down
     }
 
     @classmethod
@@ -253,24 +255,25 @@ class HelpBuffer(ListBuffer):
     def __init__(self, buffer_class):
         super(HelpBuffer, self).__init__(buffer_class)
         self._buffer_class = buffer_class
-        self._item_height = 2
-        self._update_items()
+        self._render_lines()
 
-    def _update_items(self):
+    def _render_lines(self):
         keymap = self._buffer_class.__keymap__.flattened()
-        self._items = [[[{'content': '%s' % k, 'attributes': curses.A_BOLD},
-                         ': %s' % (v.__name__)],
-                        '  %s' % (v.__doc__ or '<No documentation>').split('\n', 1)[0]]
-                       for k, v in keymap.items()]
+        self._lines = []
         if self._buffer_class.__doc__:
-            self._items = self._buffer_class.__doc__.split('\n') + ['']
+            self._lines.extend((line.strip() for line in self._buffer_class.__doc__.split('\n')))
+            self._lines.append('')
+        for k, v in keymap.items():
+            self._lines.append([{'content': '%s' % k, 'attributes': curses.A_BOLD},
+                                ': %s' % (v.__name__)])
+            self._lines.extend(('  %s' % line.strip()
+                                for line in (v.__doc__ or '<No documentation>').split('\n')))
 
-    def items(self):
-        return self._items
+    def line_count(self):
+        return len(self._lines)
 
-    def render_item(self, window, item, index):
-        return item
-
+    def get_lines(self, window):
+        yield from iter(self._lines[window._state['first-row']:])
 
 class BufferListBuffer(ListBuffer):
     @classmethod
