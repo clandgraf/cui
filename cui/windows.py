@@ -210,18 +210,62 @@ class WindowManager(object):
         while win_queue:
             yield win_queue.pop(0)
 
-    def _next_window(self):
-        try:
-            windows = self._iterate_windows(self._selected_window)
-            next(windows)
-            return next(windows)
-        except:
-            return self._selected_window
+    def _neighbouring_window(self, direction, use=None):
+        # TODO make direction optional
+        # Provide line/col advice when descending, buffers may provide if available
+        rdirection = (direction + 1) % 2
+        current = self._selected_window
+        while True:
+            if current['parent'] is None:
+                # Is first/last leaf in tree
+                break
+            elif current == current['parent']['content'][rdirection] and \
+                 (use is None or use == current['parent']['wm_type']):
+                # Is first/last leaf in split
+                current = current['parent']['content'][direction]
+                break
+            current = current['parent']
+
+        while current['wm_type'] != 'window':
+            current = current['content'][rdirection]
+
+        return current
 
     def select_window(self, window):
         self._selected_window = self._windows[id(window)]
         self._selected_window['content'].sync_state_to_buffer()
         return window
+
+    def selected_window(self):
+        return self._selected_window['content']
+
+    def _next_window(self):
+        return self._neighbouring_window(direction=1)
+
+    def select_next_window(self):
+        self.select_window(self._next_window()['content'])
+
+    def _previous_window(self):
+        return self._neighbouring_window(direction=0)
+
+    def select_previous_window(self):
+        self.select_window(self._previous_window()['content'])
+
+    def select_left_window(self):
+        return self.select_window(
+            self._neighbouring_window(direction=0, use='rsplit')['content'])
+
+    def select_right_window(self):
+        return self.select_window(
+            self._neighbouring_window(direction=1, use='rsplit')['content'])
+
+    def select_top_window(self):
+        return self.select_window(
+            self._neighbouring_window(direction=0, use='bsplit')['content'])
+
+    def select_bottom_window(self):
+        return self.select_window(
+            self._neighbouring_window(direction=1, use='bsplit')['content'])
 
     # def divider_up(self, window):
     #     _window = self._windows[id(window)]
@@ -240,12 +284,6 @@ class WindowManager(object):
             if predicate(w['content']):
                 return w['content']
         return None
-
-    def selected_window(self):
-        return self._selected_window['content']
-
-    def select_next_window(self):
-        self.select_window(self._next_window()['content'])
 
     def _get_vertical_dimensions(self, parent_dimension, first_size):
         return (

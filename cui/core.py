@@ -71,6 +71,24 @@ def set_variable(path, value=None):
 def select_window(window):
     return Core().select_window(window)
 
+def select_next_window():
+    return Core()._wm.select_next_window()
+
+def select_previous_window():
+    return Core()._wm.select_previous_window()
+
+def select_left_window():
+    return Core()._wm.select_left_window()
+
+def select_right_window():
+    return Core()._wm.select_right_window()
+
+def select_top_window():
+    return Core()._wm.select_top_window()
+
+def select_bottom_window():
+    return Core()._wm.select_bottom_window()
+
 def find_window(predicate):
     return Core().find_window(predicate)
 
@@ -176,16 +194,22 @@ class Core(WithKeymap,
     __update_functions__ = []
 
     __keymap__ = {
-        "C-x C-c": bye,
-        "C-x 1":   delete_all_windows,
-        "C-x 2":   split_window_below,
-        "C-x 3":   split_window_right,
-        "C-x 0":   delete_selected_window,
-        "C-x o":   lambda: Core()._wm.select_next_window(),
-        "C-i":     next_buffer,
-        "C-w":     log_windows,
-        "C-x C-k": kill_current_buffer,
-        "C-x C-b": lambda: switch_buffer(BufferListBuffer)
+        "C-x C-c":   bye,
+        "C-x 1":     delete_all_windows,
+        "C-x 2":     split_window_below,
+        "C-x 3":     split_window_right,
+        "C-x 0":     delete_selected_window,
+        "C-x o":     select_next_window,
+        "M-n":       select_next_window,
+        "M-p":       select_previous_window,
+        "M-<left>":  select_left_window,
+        "M-<right>": select_right_window,
+        "M-<up>":    select_top_window,
+        "M-<down>":  select_bottom_window,
+        "C-i":       next_buffer,
+        "C-w":       log_windows,
+        "C-x C-k":   kill_current_buffer,
+        "C-x C-b":   lambda: switch_buffer(BufferListBuffer)
     }
 
     def __init__(self):
