@@ -154,7 +154,7 @@ class ListBuffer(ScrollableBuffer):
         '<up>':     previous_item,
         '<down>':   next_item,
         'C-l':      recenter_selection,
-        'C-j':      select_item
+        '<enter>':  select_item
     }
 
     def __init__(self, *args):
@@ -354,10 +354,10 @@ def delete_prev_char(buf):
 
 class ConsoleBuffer(ScrollableBuffer):
     __keymap__ = {
-        'C-j': with_current_buffer(lambda buf: buf.send_current_buffer()),
-        'C-?': delete_prev_char,
-        '<del>': delete_next_char,
-        '<left>': prev_char,
+        '<enter>': with_current_buffer(lambda buf: buf.send_current_buffer()),
+        'C-?':     delete_prev_char,
+        '<del>':   delete_next_char,
+        '<left>':  prev_char,
         '<right>': next_char
     }
 

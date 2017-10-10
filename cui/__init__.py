@@ -3,7 +3,7 @@ from contextlib import contextmanager
 from cui import core
 from cui.core import \
     init_func, update_func, post_init_func, \
-    message, \
+    running, message, \
     def_colors, def_foreground, def_background, \
     def_variable, get_variable, set_variable, \
     select_window, selected_window, delete_selected_window, delete_all_windows, find_window, \

@@ -35,6 +35,9 @@ def update_func(fn):
     Core.__update_functions__.append(fn)
     return fn
 
+def running():
+    return Core().is_running()
+
 def bye():
     """Quit this program."""
     Core().bye()
@@ -308,6 +311,9 @@ class Core(WithKeymap,
     def remove_exit_handler(self, handler_fn):
         self._exit_handlers.remove(handler_fn)
 
+    def is_running(self):
+        return self._running
+
     def _run_exit_handlers(self):
         while len(self._exit_handlers):
             self._exit_handlers.pop()()
@@ -321,6 +327,7 @@ class Core(WithKeymap,
         self._screen = curses.initscr()
         curses.savetty()
         curses.raw(1)
+        curses.nonl() # < --- testing testing testing
         curses.noecho()
         curses.curs_set(0)
         self._screen.keypad(1)
