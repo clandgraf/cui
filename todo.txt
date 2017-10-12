@@ -3,6 +3,22 @@
 TODO
 ====
 
+ --> Improve code highlighting api (in emacs)
+     - Should support multiple sessions, each with multiple suspended threads
+     - Each thread may display multiple frames
+       (primary-color for currently selected frame, secondary-color for all other frames)
+
+     Lisp data structure:
+       hash_map: session_id => hash_map: thread_id => alist: [primary, secondary: list]
+       hash_map: session_id => hash_map: thread_id => hash_map: file:line => overlay
+
+     Behaviour:
+       on_select_frame:  secondaries are created when switching frames, while moving primary to current frame
+       on_suspend:       initialize primary.
+       on_resume:        remove all secondaries, hide primary
+       on_kill_thread:   remove map with thread_id (primary, all secondaries)
+       on_kill_session:  on_kill_thread for all sessions
+
  --> Bug when ThreadBufferMixin is last in list:
        'CodeBuffer' object has no attribute 'set_frame'
 

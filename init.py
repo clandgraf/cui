@@ -1,11 +1,11 @@
-import sys
-import os
-sys.path.append(os.path.join(os.path.dirname(__file__), 'themes'))
+from cui.util import add_to_sys_path, local_file
 
-import pydevds
-#import blue_forest
-import tomorrow_night_eighties
+add_to_sys_path(local_file(__file__, 'themes'))
+
 import cui
+import cui_emacs
+import pydevds
+import pydevds.emacs
+import tomorrow_night_eighties
 
-#cui.buffer_visible(cui.buffers.TestConsoleBuffer,
-#                   split_method=cui.split_window_right)
+cui.set_variable(['emacsclient'], 'c:/Program Files/emacs/bin/emacsclient')

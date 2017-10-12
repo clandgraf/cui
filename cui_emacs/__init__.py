@@ -1,59 +1,71 @@
 import cui
+import os
 import subprocess
+
+from cui.util import local_file
 
 FUNCTION_TEMPLATE = "(defun %(name)s (%(args)s) %(body)s)"
 
 FUNCTION_LIST = []
 
-cui.def_variable(['cui_emacsclient'], 'emacsclient')
+cui.def_variable(['emacsclient'], 'emacsclient')
 
 class LispException(Exception):
     pass
 
 def _convert_arg(arg):
     if isinstance(arg, str):
-        return "\"%s\"" % arg
+        return ("\"%s\"" % arg).encode('unicode_escape').decode('utf-8')
     elif isinstance(arg, int):
         return repr(arg)
 
     raise LispException("Unsupported arg-type: %s" % type(arg))
 
-def eval_in_emacs(string):
-    proc = subprocess.run([cui.get_variable(['cui_emacsclient']), "-e", string], stdout=subprocess.PIPE)
+
+def evaluate(string):
+    proc = subprocess.run([cui.get_variable(['emacsclient']), "-e", string],
+                          universal_newlines=True,
+                          stdout=subprocess.PIPE)
+    stdout = proc.stdout
     if (proc.returncode != 0):
-        raise LispException(proc.stdout)
-    return proc.stdout
+        raise LispException(stdout)
+    return stdout
 
-def defun(e_name, e_args, body):
-    lisp = FUNCTION_TEMPLATE % {'name': e_name,
-                                'args': ' '.join(e_args),
-                                'body': body}
-    if cui.running():
-        out = eval_in_emacs(lisp)
-    else:
-        FUNCTION_LIST.append(lisp)
 
+def declare_function(name):
     def _fn(*args):
-        return eval_in_emacs("(%s %s)"
-                             % (e_name,
-                                ' '.join(map(_convert_arg, args))))
+        return evaluate("(%s %s)"
+                        % (name,
+                           ' '.join(map(_convert_arg, args))))
     return _fn
 
 
+def defun(e_name, e_args, body=None, path_to_body=None):
+    argstring = ' '.join(e_args)
+    if not body:
+        if not path_to_body:
+            raise LispException('No definition for %s(%s)' % (ename, argstring))
+        with open(path_to_body, 'r') as f:
+            body = f.read()
+
+    lisp = FUNCTION_TEMPLATE % {'name': e_name,
+                                'args': argstring,
+                                'body': body}
+    if cui.running():
+        out = evaluate(lisp)
+    else:
+        FUNCTION_LIST.append(lisp)
+    return declare_function(e_name)
+
+
 @cui.post_init_func
-def initialize_lisp():
-    proc = subprocess.run([cui.get_variable(['cui_emacsclient']), '--version'], stdout=subprocess.PIPE)
+def initialize():
+    proc = subprocess.run([cui.get_variable(['emacsclient']), '--version'],
+                          universal_newlines=True,
+                          stdout=subprocess.PIPE)
+    stdout = proc.stdout
     if (proc.returncode != 0):
-        raise LispException(proc.stdout)
-    cui.message(proc.stdout)
+        raise LispException(stdout)
+    cui.message(stdout)
     while len(FUNCTION_LIST):
-        eval_in_emacs(FUNCTION_LIST.pop(0))
-
-
-display_line = defun("cui--display-line", ["file-name line-number"],
-                     """(let ((buffer (find-file-noselect file-name)))
-                          (if (null buffer)
-                            (message "Cannot access file.")
-                            (select-window (display-buffer buffer))
-                            (goto-char 0)
-                            (forward-line (- line-number 1))))""")
+        evaluate(FUNCTION_LIST.pop(0))

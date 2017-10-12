@@ -1,5 +1,14 @@
+import os
+import sys
+
 from operator import add
 from functools import reduce
+
+def add_to_sys_path(p):
+    sys.path.append(p)
+
+def local_file(module_file, path):
+    return os.path.join(os.path.dirname(module_file), path)
 
 def intersperse(lst, sep):
     return reduce(add, [(e, sep) for e in lst])[:-1]

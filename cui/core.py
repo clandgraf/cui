@@ -69,6 +69,24 @@ def get_variable(path):
 def set_variable(path, value=None):
     return Core().set_variable(path, value)
 
+# Hooks
+
+def def_hook(path):
+    return Core().def_variable(path, [])
+
+def add_hook(path, fn):
+    hooks = Core().get_variable(path)
+    if fn not in hooks:
+        hooks.append(fn)
+
+def remove_hook(path, fn):
+    hooks = Core().get_variable(path)
+    hooks.remove(fn)
+
+def run_hook(path, *args, **kwargs):
+    for hook in Core().get_variable(path):
+        hook(*args, **kwargs)
+
 # Windows
 
 def select_window(window):
