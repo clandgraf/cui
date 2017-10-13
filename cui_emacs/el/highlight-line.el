@@ -1,3 +1,6 @@
+;; Copyright (c) 2017 Christoph Landgraf. All rights reserved.
+;; Use of this source code is governed by a BSD-style license that can be
+;; found in the LICENSE file.
 
 ;; TODO tooltip
 ;; TODO window prop optional
@@ -12,10 +15,15 @@
 
 (defvar cui/overlays (make-hash-table :test #'equal))
 
+(defvar cui/overlay-windows (make-hash-table :test #'equal))
+
 (defun cui/highlight-line (overlay-id file-name line-number)
-  (let ((the-point (cui/display-line file-name line-number)))
+  (let ((the-point (cui/display-line file-name
+                                     line-number
+                                     (gethash overlay-id cui/overlay-windows))))
     (if the-point
         (save-excursion
+          (puthash overlay-id (selected-window) cui/overlay-windows)
           (goto-char the-point)
           (cui/show-overlay overlay-id)))))
 
@@ -39,22 +47,24 @@
 
 (defun cui/remove-overlay (overlay-id)
   (cui/unhighlight-line overlay-id)
+  (remhash overlay-id cui/overlay-windows)
   (remhash overlay-id cui/overlays))
 
 (defun cui/remove-overlays ()
   (maphash (lambda (k v) (cui/remove-overlay k))
            cui/overlays))
 
-(defun cui/display-line (file-name line-number)
+(defun cui/display-line (file-name line-number &optional window)
   (let ((buffer (find-file-noselect file-name)))
     (if (null buffer)
         (message "Cannot access file.")
-      (let ((window (display-buffer buffer)))
-        (select-window window)
-        (save-excursion
-          (goto-char 0)
-          (forward-line (- line-number 1))
-          (point))))))
+      (select-window (if (and window (window-live-p window))
+                         window
+                       (display-buffer buffer)))
+      (save-excursion
+        (goto-char 0)
+        (forward-line (- line-number 1))
+        (point)))))
 
 
 (cui/highlight-line "test/overlay"

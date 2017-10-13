@@ -1,3 +1,7 @@
+# Copyright (c) 2017 Christoph Landgraf. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
 from cui.util import deep_put, deep_get, get_base_classes
 
 skey_map = set(['<f1>', '<f2>', '<f3>', '<f4>', '<f5>', '<f6>', '<f7>', '<f8>',
