@@ -7,7 +7,7 @@ import os
 import subprocess
 
 from cui.util import local_file
-from cui_emacs.returns import parse_return_value
+from cui_emacs.parser import parse
 from cui_emacs.util import LispException
 
 FUNCTION_TEMPLATE = "(defun %(name)s (%(args)s) %(body)s)"
@@ -36,7 +36,7 @@ def evaluate(string):
                           stderr=subprocess.PIPE)
     if (proc.returncode != 0):
         raise LispException(proc.stderr.decode('utf-8'))
-    return proc.stdout.decode('utf-8').strip()
+    return parse(proc.stdout.decode('utf-8').strip())
 
 def _set_function_info(fn, info):
     fn.__doc__ = info
@@ -55,7 +55,7 @@ def declare_function(name):
         return evaluate("(%s %s)"
                         % (name,
                            ' '.join(map(_convert_arg, args))))
-    if (cui.running()):
+    if (cui.has_run(initialize)):
         _set_function_info(_fn, _retrieve_function_info(name))
     else:
         DEFERRED_FN_INFO.append((name, _fn))
@@ -74,7 +74,7 @@ def defun(e_name, e_args, body=None, path_to_body=None):
     lisp = FUNCTION_TEMPLATE % {'name': e_name,
                                 'args': argstring,
                                 'body': body}
-    if cui.running():
+    if cui.has_run(initialize):
         out = evaluate(lisp)
     else:
         FUNCTION_LIST.append(lisp)
@@ -93,4 +93,12 @@ def initialize():
     # define functions from python
     while len(FUNCTION_LIST):
         evaluate(FUNCTION_LIST.pop(0))
+
     # retrieve doc for declared functions
+    global DEFERRED_FN_INFO
+    while DEFERRED_FN_INFO:
+        fns = DEFERRED_FN_INFO[:10]
+        for fn, info in zip((fn for _, fn in fns),
+                            _retrieve_function_infos((sym for sym, _ in fns))):
+            _set_function_info(fn, info)
+        DEFERRED_FN_INFO = DEFERRED_FN_INFO[10:]

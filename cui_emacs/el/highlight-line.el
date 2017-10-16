@@ -18,6 +18,7 @@
 (defvar cui/overlay-windows (make-hash-table :test #'equal))
 
 (defun cui/highlight-line (overlay-id file-name line-number)
+  "Use the overlay OVERLAY-ID to highlight FILE-NAME on LINE-NUMBER."
   (let ((the-point (cui/display-line file-name
                                      line-number
                                      (gethash overlay-id cui/overlay-windows))))
@@ -36,6 +37,8 @@
     (move-overlay overlay (line-beginning-position) (line-beginning-position 2) (current-buffer))))
 
 (defun cui/unhighlight-line (overlay-id)
+  "Removes the overlay OVERLAY-ID from its current buffer.
+This does not remove the overlay from memory."
   (let ((overlay (gethash overlay-id cui/overlays)))
     (if overlay
         (delete-overlay (gethash overlay-id cui/overlays)))))

@@ -7,6 +7,7 @@ import curses
 import imp
 import math
 import traceback
+import functools
 
 from cui import keyreader
 from cui.buffers import LogBuffer, BufferListBuffer
@@ -25,14 +26,40 @@ READ_TIMEOUT = 100
 
 # Package Lifecycle
 
+def has_run(fn):
+    """Determine if an init_func or a post_init_func has been successfully executed."""
+    return getattr(fn, '__has_run__')
+
+
 def init_func(fn):
-    Core.__init_functions__.append(fn)
-    return fn
+    """Marks a function as an initialization function."""
+    fn.__has_run__ = False
+    @functools.wraps(fn)
+    def wrapper_fn(*args, **kwargs):
+        if fn.__has_run__:
+            cui.message('Warning: executing init_func %s more than once.' % fn)
+
+        result = fn(*args, **kwargs)
+        fn.__has_run__ = True
+        return result
+
+    Core.__init_functions__.append(wrapper_fn)
+    return wrapper_fn
 
 
 def post_init_func(fn):
-    Core.__post_init_functions__.append(fn)
-    return fn
+    fn.__has_run__ = False
+    @functools.wraps(fn)
+    def wrapper_fn(*args, **kwargs):
+        if fn.__has_run__:
+            cui.message('Warning: executing post_init_func %s more than once.' % fn)
+
+        result = fn(*args, **kwargs)
+        fn.__has_run__ = True
+        return result
+
+    Core.__post_init_functions__.append(wrapper_fn)
+    return wrapper_fn
 
 
 def update_func(fn):
