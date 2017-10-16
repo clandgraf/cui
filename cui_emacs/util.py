@@ -1,0 +1,3 @@
+
+class LispException(Exception):
+    pass

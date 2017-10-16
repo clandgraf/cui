@@ -2,6 +2,12 @@
 
 TODO
 ====
+ --> if color-customization fails, this should just render a message, not raise any exceptions,
+     as the software should still be able to run, and the same instance should be runnable on
+     different terminals
+
+ --> Close all sessions on program exit
+     --> hooks must be called
 
  --> Improve code highlighting api (in emacs)
      - Should support multiple sessions, each with multiple suspended threads

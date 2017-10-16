@@ -36,7 +36,9 @@
     (move-overlay overlay (line-beginning-position) (line-beginning-position 2) (current-buffer))))
 
 (defun cui/unhighlight-line (overlay-id)
-  (delete-overlay (gethash overlay-id cui/overlays)))
+  (let ((overlay (gethash overlay-id cui/overlays)))
+    (if overlay
+        (delete-overlay (gethash overlay-id cui/overlays)))))
 
 (defun cui/make-overlay (overlay-id)
   (let ((overlay (make-overlay (point) (point))))
@@ -51,7 +53,7 @@
   (remhash overlay-id cui/overlays))
 
 (defun cui/remove-overlays ()
-  (maphash (lambda (k v) (cui/remove-overlay k))
+  (maphash (lambda (k v) (message k) (cui/remove-overlay k))
            cui/overlays))
 
 (defun cui/display-line (file-name line-number &optional window)
@@ -59,11 +61,14 @@
     (if (null buffer)
         (message "Cannot access file.")
       (select-window (if (and window (window-live-p window))
-                         window
+                         (progn
+                           (switch-to-buffer buffer)
+                           window)
                        (display-buffer buffer)))
       (save-excursion
         (goto-char 0)
         (forward-line (- line-number 1))
+        (recenter)
         (point)))))
 
 

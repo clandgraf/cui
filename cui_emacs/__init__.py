@@ -7,15 +7,17 @@ import os
 import subprocess
 
 from cui.util import local_file
+from cui_emacs.returns import parse_return_value
+from cui_emacs.util import LispException
 
 FUNCTION_TEMPLATE = "(defun %(name)s (%(args)s) %(body)s)"
 
 FUNCTION_LIST = []
 
-cui.def_variable(['emacsclient'], 'emacsclient')
+DEFERRED_FN_INFO = []
 
-class LispException(Exception):
-    pass
+cui.def_variable(['emacsclient'], 'emacsclient')
+cui.def_variable(['logging', 'emacs-calls'], False)
 
 def _convert_arg(arg):
     if isinstance(arg, str):
@@ -25,26 +27,43 @@ def _convert_arg(arg):
 
     raise LispException("Unsupported arg-type: %s" % type(arg))
 
-
 def evaluate(string):
-    proc = subprocess.run([cui.get_variable(['emacsclient']), "-e", string],
-                          universal_newlines=True,
-                          stdout=subprocess.PIPE)
-    stdout = proc.stdout
-    if (proc.returncode != 0):
-        raise LispException(stdout)
-    return stdout
+    if cui.get_variable(['logging', 'emacs-calls']):
+        cui.message(string)
 
+    proc = subprocess.run([cui.get_variable(['emacsclient']), "-e", string],
+                          stdout=subprocess.PIPE,
+                          stderr=subprocess.PIPE)
+    if (proc.returncode != 0):
+        raise LispException(proc.stderr.decode('utf-8'))
+    return proc.stdout.decode('utf-8').strip()
+
+def _set_function_info(fn, info):
+    fn.__doc__ = info
+
+def _retrieve_function_info(symbol, info_fn='#\'documentation'):
+    return evaluate("(funcall %s #'%s)" % (info_fn, symbol))
+
+def _retrieve_function_infos(symbols, info_fn='#\'documentation'):
+    return evaluate("(mapcar %s (list %s))"
+                    % (info_fn,
+                       ' '.join(('#\'%s' % sym for sym in symbols))))
 
 def declare_function(name):
+    """Declare an existing function in emacs lisp."""
     def _fn(*args):
         return evaluate("(%s %s)"
                         % (name,
                            ' '.join(map(_convert_arg, args))))
+    if (cui.running()):
+        _set_function_info(_fn, _retrieve_function_info(name))
+    else:
+        DEFERRED_FN_INFO.append((name, _fn))
     return _fn
 
 
 def defun(e_name, e_args, body=None, path_to_body=None):
+    """Define a function from python code."""
     argstring = ' '.join(e_args)
     if not body:
         if not path_to_body:
@@ -66,10 +85,12 @@ def defun(e_name, e_args, body=None, path_to_body=None):
 def initialize():
     proc = subprocess.run([cui.get_variable(['emacsclient']), '--version'],
                           universal_newlines=True,
-                          stdout=subprocess.PIPE)
-    stdout = proc.stdout
+                          stdout=subprocess.PIPE,
+                          stderr=subprocess.PIPE)
     if (proc.returncode != 0):
-        raise LispException(stdout)
-    cui.message(stdout)
+        raise LispException(proc.stderr)
+    cui.message(proc.stdout)
+    # define functions from python
     while len(FUNCTION_LIST):
         evaluate(FUNCTION_LIST.pop(0))
+    # retrieve doc for declared functions
