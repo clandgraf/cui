@@ -173,6 +173,10 @@ def current_buffer():
     """Return the buffer in the selected window."""
     return Core().current_buffer()
 
+def previous_buffer():
+    """Switch to the previous buffer in the selected window."""
+    return Core().switch_to_previous_buffer()
+
 def next_buffer():
     """Switch to the next buffer in the selected window."""
     return Core().switch_to_next_buffer()
@@ -264,7 +268,8 @@ class Core(WithKeymap,
         "M-<right>": select_right_window,
         "M-<up>":    select_top_window,
         "M-<down>":  select_bottom_window,
-        "C-i":       next_buffer,
+        "S-<tab>":   previous_buffer,
+        "<tab>":     next_buffer,
         "C-w":       log_windows,
         "C-x C-k":   kill_current_buffer,
         "C-x C-b":   lambda: switch_buffer(BufferListBuffer)
@@ -315,6 +320,13 @@ class Core(WithKeymap,
 
     def _find_next_buffer(self, buffer_object):
         return self.buffers[(self.buffers.index(buffer_object) + 1) % len(self.buffers)]
+
+    def _find_previous_buffer(self, buffer_object):
+        return self.buffers[(self.buffers.index(buffer_object) - 1)]
+
+    def switch_to_previous_buffer(self, buffer_object=None):
+        selected_window = self.selected_window()
+        selected_window.set_buffer(self._find_previous_buffer(selected_window.buffer()))
 
     def switch_to_next_buffer(self, buffer_object=None):
         selected_window = self.selected_window()

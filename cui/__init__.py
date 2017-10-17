@@ -14,7 +14,7 @@ from cui.core import \
     select_window, selected_window, delete_selected_window, delete_all_windows, find_window, \
     split_window_below, split_window_right, \
     get_buffer, select_buffer, switch_buffer, current_buffer, buffer_window, buffer_visible, \
-    kill_current_buffer
+    kill_current_buffer, next_buffer, previous_buffer
 from cui import buffers
 from cui.buffers import with_current_buffer
 
@@ -78,6 +78,8 @@ __all__ = [
     'buffer_visible',
     'kill_buffer',
     'kill_current_buffer',
+    'next_buffer',
+    'previous_buffer',
 
     'exec_in_buffer_visible',
     'exec_if_buffer_exists',

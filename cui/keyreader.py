@@ -8,11 +8,13 @@ import re
 EVT_RESIZE = 'key_resize'
 
 KEYCHORD_MAP = {
-    'C-m':        '<enter>'
+    'C-m':        '<enter>',
+    'C-i':        '<tab>'
 }
 
 KEYNAME_MAP = {
     'KEY_DC':     '<del>',
+    'KEY_BTAB':   'S-<tab>',
 
     'KEY_UP':     '<up>',
     'KEY_SR':     'S-<up>',
