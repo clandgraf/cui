@@ -9,3 +9,4 @@ import pydevds.emacs
 import tomorrow_night_eighties
 
 cui.set_variable(['emacsclient'], 'c:/Program Files/emacs/bin/emacsclient')
+#cui.set_variable(['logging', 'emacs-calls'], True)

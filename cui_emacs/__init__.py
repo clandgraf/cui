@@ -28,15 +28,19 @@ def _convert_arg(arg):
     raise LispException("Unsupported arg-type: %s" % type(arg))
 
 def evaluate(string):
-    if cui.get_variable(['logging', 'emacs-calls']):
-        cui.message(string)
+    log_calls = cui.get_variable(['logging', 'emacs-calls'])
+    if log_calls:
+        cui.message('emacs-call: %s' % string)
 
     proc = subprocess.run([cui.get_variable(['emacsclient']), "-e", string],
                           stdout=subprocess.PIPE,
                           stderr=subprocess.PIPE)
     if (proc.returncode != 0):
         raise LispException(proc.stderr.decode('utf-8'))
-    return parse(proc.stdout.decode('utf-8').strip())
+    result = proc.stdout.decode('utf-8').strip()
+    if log_calls:
+        cui.message('emacs-result: %s' % result)
+    return parse(result)
 
 def _set_function_info(fn, info):
     fn.__doc__ = info

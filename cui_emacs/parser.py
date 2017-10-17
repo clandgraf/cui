@@ -4,6 +4,13 @@
 
 from cui_emacs.util import LispException
 
+class Unreadable(object):
+    def __init__(self, name):
+        self.name = name
+
+    def __str__(self):
+        return '#<%s>' % self.name
+
 class Symbol(object):
     def __init__(self, name):
         self.name = name
@@ -63,6 +70,12 @@ def parse_number(string, idx):
         number = number * 10 + int(string[idx])
         idx = advance_index(string, idx)
 
+def parse_unreadable(string, idx):
+    index = string[idx:].find('>')
+    if index == -1:
+        raise LispException('Expected matching \'>\'')
+    return Unreadable(string[idx:index]), idx + index + 1
+
 def parse_symbol(string, idx):
     sym = ''
     while idx < len(string) and string[idx] != ' ' and string[idx] != ')':
@@ -88,6 +101,8 @@ def parse_expression(string, idx=0):
         return parse_list(string, idx + 1)
     elif string[idx] == '"':
         return parse_string(string, idx + 1)
+    elif string[idx:].startswith('#<'):
+        return parse_unreadable(string, idx + 2)
     elif string[idx].isdigit():
         return parse_number(string, idx)
     else:
