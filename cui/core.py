@@ -69,6 +69,12 @@ def update_func(fn):
 def running():
     return Core().is_running()
 
+def add_exit_handler(fn):
+    Core().add_exit_handler(fn)
+
+def remove_exit_handler(fn):
+    Core().remove_exit_handler(fn)
+
 def bye():
     """Quit this program."""
     Core().bye()

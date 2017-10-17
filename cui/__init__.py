@@ -6,7 +6,7 @@ from contextlib import contextmanager
 
 from cui import core
 from cui.core import \
-    has_run, init_func, update_func, post_init_func, \
+    has_run, init_func, update_func, post_init_func, add_exit_handler, remove_exit_handler, \
     running, message, \
     def_colors, def_foreground, def_background, \
     def_variable, get_variable, set_variable, \
@@ -43,6 +43,8 @@ __all__ = [
     'init_func',
     'update_func',
     'post_init_func',
+    'add_exit_handler',
+    'remove_exit_handler',
 
     'message',
 
