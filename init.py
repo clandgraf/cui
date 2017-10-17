@@ -6,7 +6,7 @@ import cui
 import cui_emacs
 import pydevds
 import pydevds.emacs
-import tomorrow_night_eighties
+import tomorrow_night_blue
 
 cui.set_variable(['emacsclient'], 'c:/Program Files/emacs/bin/emacsclient')
 #cui.set_variable(['logging', 'emacs-calls'], True)
