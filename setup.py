@@ -8,7 +8,7 @@ setup(
     author_email =     "christoph.landgraf@googlemail.com",
     description =      "A Text UI Framework for Python",
     license =          "BSD",
-    url =              "https://github.com/clandgraf/pydevds",
+    url =              "https://github.com/clandgraf/cui",
     packages =         ['cui'],
     entry_points =     {'console_scripts': ['cui = cui.__main__:main']}
 )
