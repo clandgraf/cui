@@ -2,12 +2,19 @@
 
 TODO
 ====
+
+ --> Resetting, switching themes
+     - When a fg/bg is defined for first time, register provided value as default value.
+     - Save default values of default colors
+
+     - reset_colors()
+       -> reset fg/bg to default values
+       -> reset default colors to default values
+       -> remove additionally defined colors
+
  --> if color-customization fails, this should just render a message, not raise any exceptions,
      as the software should still be able to run, and the same instance should be runnable on
      different terminals
-
- --> Close all sessions on program exit
-     --> hooks must be called
 
  --> Improve code highlighting api (in emacs)
      - Should support multiple sessions, each with multiple suspended threads
@@ -25,19 +32,9 @@ TODO
        on_kill_thread:   remove map with thread_id (primary, all secondaries)
        on_kill_session:  on_kill_thread for all sessions
 
- --> Bug when ThreadBufferMixin is last in list:
-       'CodeBuffer' object has no attribute 'set_frame'
-
  --> remove D_Frame class use dict instead
 
- --> Move generic Server-Session handling code to cui.tools
-     --> Raise exception when socket is not detected as closed, but read returns len == 0
-         terminate session
-
  --> Create Frames: WindowManager -> Frame -> Window
-
- --> Kill Buffers:
-     --> pydevds Close all associated buffers when session terminates
 
  --> Pydevds Layouting in user definable hook
 

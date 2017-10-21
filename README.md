@@ -1,3 +1,5 @@
+A Text UI Framework for Python
+
 # Troubleshooting
 
 ## Cygwin
