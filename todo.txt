@@ -3,6 +3,10 @@
 TODO
 ====
 
+ --> Create Frames: WindowManager -> Frame -> Window
+ --> CuiEvalBuffer
+ --> CuiEvalServer
+
  --> Resetting, switching themes
      - When a fg/bg is defined for first time, register provided value as default value.
      - Save default values of default colors
@@ -33,8 +37,6 @@ TODO
        on_kill_session:  on_kill_thread for all sessions
 
  --> remove D_Frame class use dict instead
-
- --> Create Frames: WindowManager -> Frame -> Window
 
  --> Pydevds Layouting in user definable hook
 

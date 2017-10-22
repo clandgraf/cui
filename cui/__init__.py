@@ -6,7 +6,8 @@ from contextlib import contextmanager
 
 from cui import core
 from cui.core import \
-    has_run, init_func, update_func, post_init_func, add_exit_handler, remove_exit_handler, \
+    has_run, init_func, update_func, is_update_func, remove_update_func, post_init_func, \
+    add_exit_handler, remove_exit_handler, \
     running, message, \
     def_colors, def_foreground, def_background, \
     def_variable, get_variable, set_variable, \
@@ -41,8 +42,10 @@ def kill_buffer(buffer_class, *args):
 __all__ = [
     'has_run',
     'init_func',
-    'update_func',
     'post_init_func',
+    'update_func',
+    'is_update_func',
+    'remove_update_func',
     'add_exit_handler',
     'remove_exit_handler',
 

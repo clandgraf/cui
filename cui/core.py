@@ -62,6 +62,12 @@ def post_init_func(fn):
     return wrapper_fn
 
 
+def remove_update_func(fn):
+    Core().remove_update_func(fn)
+
+def is_update_func(fn):
+    return Core().is_update_func(fn)
+
 def update_func(fn):
     Core.__update_functions__.append(fn)
     return fn
@@ -286,6 +292,7 @@ class Core(WithKeymap,
         self._mini_buffer = ""
         self._running = False
         self._wm = None
+        self._removed_update_funcs = []
         atexit.register(self._at_exit)
         _init_state(self)
 
@@ -430,7 +437,18 @@ class Core(WithKeymap,
                 self.message('post-init-function %s failed:\n%s'
                              % (fn.__name__, traceback.format_exc()))
 
+    def remove_update_func(self, fn):
+        self._removed_update_funcs.append(fn)
+
+    def is_update_func(self, fn):
+        return fn in self.__update_functions__
+
     def _update_packages(self):
+        # Process removed update functions
+        while self._removed_update_funcs:
+            self.__update_functions__.remove(
+                self._removed_update_funcs.pop(0))
+
         for fn in Core.__update_functions__:
             try:
                 fn()

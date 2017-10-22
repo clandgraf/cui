@@ -2,11 +2,47 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+"""
+This module provides classes for starting servers in cui
+
+It handles opening server sockets, accepting incoming connections
+and selecting sockets with readable data ready for dispatching.
+
+In order to open up a server you need to instantiate the server
+class, which receives a factory method for Session objects.
+These objects which are subclasses of Session are responsible
+for handling communication over the established connection.
+
+A simple example:
+
+.. code-block:: python
+
+   import cui
+   import cui.server
+
+   cui.defvariable(['mysrv', 'host'], 'localhost')
+   cui.defvariable(['mysrv', 'port'], 1234)
+
+   class Session(cui.server.Session):
+       def handle(self):
+           bytes_read = self.socket.recv(4096)
+           # handle bytes ...
+
+   @cui.init_func
+   def start_server():
+       srv = cui.server.Server(Session,
+                               ['mysrv', 'host'],
+                               ['mysrv', 'port'])
+       srv.start()
+
+"""
+
 import collections
 import select
 import socket
 
 import cui
+
 
 class ConnectionTerminated(Exception):
     pass
@@ -24,14 +60,38 @@ class Session(object):
         self.socket.close()
 
     def __str__(self):
-        return self.key()
-
-    def key(self):
         return '%s:%s' % self.address
 
-    @staticmethod
-    def key_from_socket(socket):
-        return '%s:%s' % socket.getsockname()
+
+class SocketSelector(object):
+    def __init__(self):
+        self._sockets = []
+        self._servers = {}
+
+    def register_socket(self, sock, server):
+        if not cui.is_update_func(self._process_sockets):
+            cui.message('Starting socket selector')
+            cui.update_func(self._process_sockets)
+        self._sockets.append(sock)
+        self._servers[id(sock)] = server
+
+    def unregister_socket(self, sock):
+        self._sockets.remove(sock)
+        del self._servers[id(sock)]
+        if not self._sockets and cui.is_update_func(self._process_sockets):
+            cui.message('Stopping socket selector')
+            cui.remove_update_func(self._process_sockets)
+
+    def _process_sockets(self):
+        if not self._sockets:
+            return
+
+        sock_read, _, _ = select.select(self._sockets, [], [], 0)
+
+        for sock in sock_read:
+            self._servers[id(sock)].process_socket(sock)
+
+socket_selector = SocketSelector()
 
 
 class Server(object):
@@ -52,45 +112,46 @@ class Server(object):
         self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.server.bind((host, port))
         self.server.listen(5)
-        cui.message('Listening on %s:%s' % (host, port))
+        cui.message('Listening on %s:%s' % self.server.getsockname())
 
-        cui.update_func(self._process_sockets)
+        socket_selector.register_socket(self.server, self)
         cui.add_exit_handler(self.shutdown)
 
     def _accept_client(self):
         client_socket, client_address = self.server.accept()
         session = self.session_factory(client_socket)
-        key = session.key()
-        cui.message('Connection received from %s' % key)
-        self.clients[key] = session
+        cui.message('Connection received from %s:%s' % session.address)
+        self.clients[id(client_socket)] = session
+        socket_selector.register_socket(client_socket, self)
 
-    def _process_sockets(self):
-        sock_list = []
-        if self.server:
-            sock_list.append(self.server)
-        sock_list.extend(map(lambda session: session.socket,
-                             self.clients.values()))
+    def process_socket(self, sock):
+        if sock is self.server:
+            self._accept_client()
+        else:
+            try:
+                session = self.clients[id(sock)]
+                session.handle()
+            except (socket.error, ConnectionTerminated) as e:
+                self.close_socket(sock)
 
-        sock_read, _, _ = select.select(sock_list, [], [], 0)
-
-        for s in sock_read:
-            if s is self.server:
-                self._accept_client()
+    def close_socket(self, sock):
+        socket_key = id(sock)
+        try:
+            if sock == self.server:
+                cui.message('Closing server on %s:%s' % self.server.getsockname())
+                self.server.close()
+                self.server = None
             else:
-                session = self.clients[self.session_factory.key_from_socket(s)]
                 try:
-                    session.handle()
-                except (socket.error, ConnectionTerminated) as e:
-                    cui.message('Connection from %s terminated' % session)
-                    try:
-                        session.close()
-                    finally:
-                        del self.clients[session.key()]
+                    session = self.clients.get(socket_key)
+                    cui.message('Connection from %s:%s terminated' % session.address)
+                    session.close()
+                finally:
+                    del self.clients[socket_key]
+        finally:
+            socket_selector.unregister_socket(sock)
 
     def shutdown(self):
-        self.server.close()
         for session in self.clients.values():
-            try:
-                session.close()
-            finally:
-                del self.clients[session.key()]
+            self.close_socket(session.socket)
+        self.close_socket(self.server)

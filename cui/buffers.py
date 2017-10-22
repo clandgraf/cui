@@ -2,6 +2,24 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+# TODO move concrete classes to own module
+
+"""
+This module provides abstract buffer classes to derive your own
+concrete or abstract buffer classes from, as well as functions
+that act on buffers.
+
+A buffer class describes how data is rendered to the screen, which is
+always line-wise. It may provide its own keymap to define a set of
+keybindings that are used in addition to the global keybindings
+defined in core. For details on defining keybindings see keymap.
+
+Buffer classes are instantiated with a set of arguments. These arguments
+must be serializable to a string representation and need to be able to
+- along with the buffer class of the object - uniquely identify a
+buffer to the system.
+"""
+
 import curses
 import functools
 import itertools
@@ -16,10 +34,14 @@ def pad_left(width, string):
         return '%s%s' % ('...', string[-(width - 3):])
     return string
 
+
 def with_window(f):
-    """Decorator that runs function only if buffer is in selected window.
-    Note that this modifies the argument list of f, inserting window as
-    second positional argument.
+    """
+    Decorator that runs function only if buffer is in selected window.
+
+    This decorator expects the first parameter of the wrapped function
+    to be a buffer. Note that this modifies the argument list of f,
+    inserting window as second positional argument.
     """
     @functools.wraps(f)
     def _with_window(*args, **kwargs):
@@ -28,6 +50,7 @@ def with_window(f):
         if win:
             f(args[0], win, *args[1:], **kwargs)
     return _with_window
+
 
 def with_current_buffer(fn):
     @functools.wraps(fn)
@@ -47,7 +70,13 @@ def display_help(buffer_object):
     """Display a help buffer"""
     return core.buffer_visible(HelpBuffer, buffer_object.__class__, to_window=True)
 
+
 class Buffer(WithKeymap):
+    """
+    This is the base class for all buffers. Usually you want to
+    to use a more specialized class.
+    """
+
     __keymap__ = {
         'C-_': display_help
     }
