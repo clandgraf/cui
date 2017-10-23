@@ -5,8 +5,10 @@
 import curses
 import re
 
-# ncurses 6 gives us 256 but python uses the old ABI
-COLOR_BG_OFFSET = 16
+# ncurses 6 gives us 256 colors but python uses the old ABI
+# we are restricted to 256 color_pairs,  from which we use
+# 8 colors max. for background and 32 colors for foreground
+COLOR_BG_OFFSET = 8
 
 COLOR_MAP = {
     'black':   curses.COLOR_BLACK,
@@ -43,7 +45,7 @@ COLOR_RE = re.compile('#(%(h)s)(%(h)s)(%(h)s)' % {'h': '[0-9a-fA-F]{2}'})
 
 
 def color_pair_from_indices(fg_index, bg_index):
-    return (bg_index * COLOR_BG_OFFSET) | fg_index
+    return bg_index | (fg_index * COLOR_BG_OFFSET)
 
 
 def color_pair_from_color(fg_name='white', bg_type='default'):
@@ -63,9 +65,12 @@ class ColorCore(object):
 
     def _init_background(self, bg_entry):
         for fg_color_index in set(COLOR_MAP.values()):
+            self._init_pair(fg_color_index, bg_entry)
+
+    def _init_pair(self, fg_color_index, bg_entry):
             pair_index = color_pair_from_indices(fg_color_index, bg_entry['index'])
             if pair_index == 0:  # Cannot change first entry
-                continue
+                return
             curses.init_pair(pair_index, fg_color_index, COLOR_MAP[bg_entry['color']])
 
     def def_colors(self, name, string):
@@ -87,7 +92,7 @@ class ColorCore(object):
     def def_colorc(self, name, r, g, b):
         if not curses.can_change_color():
             raise Exception('Can not set colors.')
-        if not len(COLOR_MAP.values()) < COLOR_BG_OFFSET:
+        if not len(COLOR_MAP.values()) < 32:
             raise Exception('Maximum number of colors (%s) is reached' % curses.COLORS)
 
         color_name_exists = name in COLOR_MAP
@@ -101,10 +106,7 @@ class ColorCore(object):
 
         # if it is a new name, we add new pair definitions
         for bg_entry in BGCOL_MAP.values():
-            pair_index = color_pair_from_indices(color_index, bg_entry['index'])
-            if pair_index == 0:  # Cannot change first entry
-                continue
-            curses.init_pair(pair_index, color_index, COLOR_MAP[bg_entry['color']])
+            self._init_pair(color_index, bg_entry)
 
     def def_foreground(self, fg_type, color_name):
         FGCOL_MAP[fg_type] = color_name
