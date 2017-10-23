@@ -3,7 +3,14 @@
 TODO
 ====
 
- --> Create Frames: WindowManager -> Frame -> Window
+ --> try: make socketselector part of core.
+     --> socket_selector -> input_selector
+     --> input_selector.register_waitable(waitable, handler)
+
+     --> in curses, wait on sys.stdin for input availability.
+         --> ui should update only if input arrives from registered stream
+
+ --> Create WindowSets: WindowManager -> WindowSet -> Window
  --> CuiEvalBuffer
  --> CuiEvalServer
 

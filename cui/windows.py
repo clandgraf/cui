@@ -6,7 +6,7 @@ import curses
 import itertools
 import math
 
-from cui.util import deep_put
+from cui.util import deep_put, forward
 from cui import core
 
 MIN_WINDOW_HEIGHT = 4
@@ -14,8 +14,8 @@ MIN_WINDOW_WIDTH  = 20
 
 
 class WindowBase(object):
-    def __init__(self, core, dimensions):
-        self._core = core
+    def __init__(self, dimensions):
+        self._core = core.Core()
         self._init_dimensions(dimensions)
         self._handle = curses.newwin(*self._internal_dimensions)
 
@@ -66,11 +66,9 @@ class WindowBase(object):
 
 
 class MiniBuffer(WindowBase):
-    def __init__(self, core, screen):
+    def __init__(self, screen):
         super(MiniBuffer, self).__init__(
-            core,
-            (1, screen.getmaxyx()[1], screen.getmaxyx()[0] - 1, 0)
-        )
+            (1, screen.getmaxyx()[1], screen.getmaxyx()[0] - 1, 0))
         self._screen = screen
 
     def get_content_dimensions(self, dim):
@@ -81,16 +79,23 @@ class MiniBuffer(WindowBase):
         self._update_dimensions((1, max_x, max_y - 1, 0))
 
     def render(self):
-        self._render_line(core.Core().mini_buffer.split('\n', 1)[0],
-                          ' ' * core.Core().get_variable(['tab-stop']),
+        left, right = self._core.mini_buffer
+        left = left.split('\n', 1)[0]
+        right = right.split('\n', 1)[0]
+        space = (self.dimensions[1] - len(left) - len(right))
+        if space < 0:
+            left = left[:(space - 4)] + '... '
+
+        self._render_line([left, ' ' * max(0, space), right],
+                          ' ' * self._core.get_variable(['tab-stop']),
                           0)
         self._handle.clrtoeol()
         self._handle.noutrefresh()
 
 
 class Window(WindowBase):
-    def __init__(self, core, dimensions, displayed_buffer):
-        super(Window, self).__init__(core, dimensions)
+    def __init__(self, dimensions, displayed_buffer):
+        super(Window, self).__init__(dimensions)
         self._buffer = None
         self.set_buffer(displayed_buffer)
 
@@ -126,7 +131,7 @@ class Window(WindowBase):
 
     def _render_buffer(self):
         self._buffer.on_pre_render()
-        soft_tabs = ' ' * core.Core().get_variable(['tab-stop'])
+        soft_tabs = ' ' * self._core.get_variable(['tab-stop'])
         self._handle.move(0, 0)
         for idx, row in itertools.islice(enumerate(self._buffer.get_lines(self)),
                                           self.dimensions[0]):
@@ -151,11 +156,9 @@ class Window(WindowBase):
                 % (self._buffer.buffer_name(), str(self._internal_dimensions)))
 
 
-class WindowManager(object):
-    def __init__(self, core, screen):
-        """Foobah"""
-        self._core = core
-
+class WindowSet(object):
+    def __init__(self, screen):
+        self._core = core.Core()
         self._screen = screen
         self._windows = {}
         self._root = self._init_root()
@@ -164,7 +167,7 @@ class WindowManager(object):
     def _init_root(self):
         max_y, max_x = self._screen.getmaxyx()
         dim = (max_y - 1, max_x, 0, 0)
-        w = Window(self._core, dim, self._core.buffers[0])
+        w = Window(dim, self._core.buffers[0])
         self._windows[id(w)] = {
             'wm_type':    'window',
             'dimensions': dim,
@@ -236,9 +239,12 @@ class WindowManager(object):
         return current
 
     def select_window(self, window):
-        self._selected_window = self._windows[id(window)]
-        self._selected_window['content'].sync_state_to_buffer()
-        return window
+        """Return window or None if not part of this WindowSet."""
+        _window = self._windows.get(id(window))
+        if _window:
+            self._selected_window = _window
+            self._selected_window['content'].sync_state_to_buffer()
+        return _window['content'] if _window else None
 
     def selected_window(self):
         return self._selected_window['content']
@@ -335,7 +341,7 @@ class WindowManager(object):
             self._core.message("Can not split. Dimensions too small.")
             return None
 
-        new_win = Window(self._core, d2, self._selected_window['content'].buffer())
+        new_win = Window(d2, self._selected_window['content'].buffer())
         w1 = {
             'wm_type':    self._selected_window['wm_type'],
             'dimensions': d1,
@@ -417,3 +423,80 @@ class WindowManager(object):
         self._screen.noutrefresh()
         for w in self._iterate_windows():
             w['content'].render(w == self._selected_window)
+
+
+@forward(lambda self: self.active_window_set())
+class WindowManager(object):
+    __forwards__ = [
+        'selected_window',
+        'select_next_window',
+        'select_previous_window',
+        'select_left_window',
+        'select_right_window',
+        'select_top_window',
+        'select_bottom_window',
+        'split_window_below',
+        'split_window_right',
+        'delete_selected_window',
+        'delete_all_windows',
+        'render'
+    ]
+
+    def __init__(self, screen):
+        self._screen = screen
+        self._window_sets = [WindowSet(screen)]
+        self._active_window_set = 0
+
+    @property
+    def window_set_index(self):
+        return self._active_window_set
+
+    @property
+    def window_set_count(self):
+        return len(self._window_sets)
+
+    def active_window_set(self):
+        return self._window_sets[self._active_window_set]
+
+    def new_window_set(self):
+        self._window_sets.insert(self._active_window_set + 1,
+                                 WindowSet(self._screen))
+        self._active_window_set += 1
+
+    def delete_window_set(self):
+        if self._active_window_set == 0:
+            core.message('Can not delete window set 1.')
+            return
+
+        self._window_sets.pop(self._active_window_set)
+        self._active_window_set %= len(self._window_sets)
+
+    def next_window_set(self):
+        self._active_window_set += 1
+        self._active_window_set %= len(self._window_sets)
+
+    def previous_window_set(self):
+        self._active_window_set += len(self._window_sets) - 1
+        self._active_window_set %= len(self._window_sets)
+
+    def resize(self):
+        for ws in self._window_sets:
+            ws.resize()
+
+    def replace_buffer(self, old_buffer_object, new_buffer_object):
+        for ws in self._window_sets:
+            ws.replace_buffer(old_buffer_object, new_buffer_object)
+
+    def select_window(self, window):
+        for idx, ws in enumerate(self._window_sets):
+            w = ws.select_window(window)
+            if w:
+                self._active_window_set = idx
+                return w
+
+    def find_window(self, predicate):
+        for ws in self._window_sets:
+            w = ws.find_window(predicate)
+            if w:
+                return w
+        return None

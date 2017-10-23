@@ -8,6 +8,26 @@ import sys
 from operator import add
 from functools import reduce
 
+def forward(to):
+    """
+    Class Decorator that forwards method calls to another object.
+
+    Parameter ``to`` is a function that receives the object on which
+    the function is invoked and must return the object to which it
+    should be forwarded.  The decorated class should have a field
+    ``__forwards__``, that lists the method names that should be
+    forwarded.
+    """
+    def _create_forwarder(method_name):
+        def _forward_fn(self, *args, **kwargs):
+            return getattr(to(self), method_name)(*args, **kwargs)
+        return _forward_fn
+    def _forward(cls):
+        for method_name in cls.__forwards__:
+            setattr(cls, method_name, _create_forwarder(method_name))
+        return cls
+    return _forward
+
 def translate_path(file_map, file_path, reverse=False):
     from_index = 1 if reverse else 0
     to_index =   0 if reverse else 1

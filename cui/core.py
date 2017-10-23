@@ -132,6 +132,18 @@ def run_hook(path, *args, **kwargs):
 
 # Windows
 
+def new_window_set():
+    Core()._wm.new_window_set()
+
+def delete_window_set():
+    Core()._wm.delete_window_set()
+
+def next_window_set():
+    Core()._wm.next_window_set()
+
+def previous_window_set():
+    Core()._wm.previous_window_set()
+
 def select_window(window):
     return Core().select_window(window)
 
@@ -229,28 +241,35 @@ def buffer_visible(buffer_object, split_method=split_window_below, to_window=Fal
 # ==============================================================================
 
 
+def mini_buffer_default():
+    c = Core()
+    return (c.last_message,
+            '%s/%s' % (c._wm.window_set_index + 1, c._wm.window_set_count))
+
+
 def _init_state(core):
     core.def_variable(['tab-stop'], 4)
     core.def_variable(['tree-tab'], 2)
+    core.def_variable(['mini-buffer-content'], mini_buffer_default)
     core.def_variable(['core', 'read-timeout'], READ_TIMEOUT)
 
 
-def log_window(core, w, depth=0):
-    core.logger.log('%s%s%s' % ('> ' if w == core._wm._selected_window else '  ',
-                                '  ' * depth,
-                                (w['content']
-                                 if w['wm_type'] == 'window' else
-                                 "#<%s dimensions=%s>"
-                                 % (w['wm_type'], w['dimensions']))))
-    if w['wm_type'] != 'window':
-        log_window(core, w['content'][0], depth=depth + 1)
-        log_window(core, w['content'][1], depth=depth + 1)
+# def log_window(core, w, depth=0):
+#     core.logger.log('%s%s%s' % ('> ' if w == core._wm._selected_window else '  ',
+#                                 '  ' * depth,
+#                                 (w['content']
+#                                  if w['wm_type'] == 'window' else
+#                                  "#<%s dimensions=%s>"
+#                                  % (w['wm_type'], w['dimensions']))))
+#     if w['wm_type'] != 'window':
+#         log_window(core, w['content'][0], depth=depth + 1)
+#         log_window(core, w['content'][1], depth=depth + 1)
 
 
-def log_windows():
-    c = Core()
-    c.logger.clear()
-    log_window(c, c._wm._root)
+# def log_windows():
+#     c = Core()
+#     c.logger.clear()
+#     log_window(c, c._wm._root)
 
 
 class Core(WithKeymap,
@@ -262,23 +281,26 @@ class Core(WithKeymap,
     __update_functions__ = []
 
     __keymap__ = {
-        "C-x C-c":   bye,
-        "C-x 1":     delete_all_windows,
-        "C-x 2":     split_window_below,
-        "C-x 3":     split_window_right,
-        "C-x 0":     delete_selected_window,
-        "C-x o":     select_next_window,
-        "M-n":       select_next_window,
-        "M-p":       select_previous_window,
-        "M-<left>":  select_left_window,
-        "M-<right>": select_right_window,
-        "M-<up>":    select_top_window,
-        "M-<down>":  select_bottom_window,
-        "S-<tab>":   previous_buffer,
-        "<tab>":     next_buffer,
-        "C-w":       log_windows,
-        "C-x C-k":   kill_current_buffer,
-        "C-x C-b":   lambda: switch_buffer(BufferListBuffer)
+        "C-x C-c":     bye,
+        "C-x 1":       delete_all_windows,
+        "C-x 2":       split_window_below,
+        "C-x 3":       split_window_right,
+        "C-x 0":       delete_selected_window,
+        "C-x 5 2":     new_window_set,
+        "C-x 5 0":     delete_window_set,
+        "C-x o":       select_next_window,
+        "M-n":         select_next_window,
+        "M-p":         select_previous_window,
+        "M-<left>":    select_left_window,
+        "M-<right>":   select_right_window,
+        "M-<up>":      select_top_window,
+        "M-<down>":    select_bottom_window,
+        "C-M-<left>":  previous_window_set,
+        "C-M-<right>": next_window_set,
+        "S-<tab>":     previous_buffer,
+        "<tab>":       next_buffer,
+        "C-x C-k":     kill_current_buffer,
+        "C-x C-b":     lambda: switch_buffer(BufferListBuffer)
     }
 
     def __init__(self):
@@ -289,7 +311,7 @@ class Core(WithKeymap,
         self._screen = None
         self._exit_handlers = []
         self._current_keychord = []
-        self._mini_buffer = ""
+        self._last_message = ""
         self._running = False
         self._wm = None
         self._removed_update_funcs = []
@@ -297,7 +319,7 @@ class Core(WithKeymap,
         _init_state(self)
 
     def message(self, msg, show_log=True, log_message=None):
-        self._mini_buffer = msg
+        self._last_message = msg
         if log_message:
             self.logger.log(log_message)
         elif show_log:
@@ -410,11 +432,11 @@ class Core(WithKeymap,
         # Init Colors
         curses.start_color()
         self._init_colors()
-        self._screen.bkgd(self.get_index_for_type())
-        self._screen.refresh()
+        #self._screen.bkgd(self.get_index_for_type())
+        #self._screen.refresh()
         self.add_exit_handler(self._quit_curses)
-        self._wm = WindowManager(self, self._screen)
-        self._mini_buffer_win = MiniBuffer(self, self._screen)
+        self._wm = WindowManager(self._screen)
+        self._mini_buffer_win = MiniBuffer(self._screen)
 
     def _quit_curses(self):
         self._mini_buffer_win = None
@@ -462,8 +484,12 @@ class Core(WithKeymap,
         curses.doupdate()
 
     @property
+    def last_message(self):
+        return self._last_message
+
+    @property
     def mini_buffer(self):
-        return self._mini_buffer
+        return self.get_variable(['mini-buffer-content'])()
 
     def _handle_resize(self):
         self._mini_buffer_win.resize()
@@ -499,14 +525,16 @@ class Core(WithKeymap,
                         is_keychord_handled = self.handle_input(self._current_keychord)
                         if is_keychord_handled:
                             # current_keychord was handled via keymap
+                            self.message('', show_log=False)
                             self._current_keychord = []
                         elif is_input and len(self._current_keychord) == 1:
-                            # kc is direct input that was not handled and beginning of sequence
+                            # kc is direct input that was not handled and not beginning of sequence
                             current_buffer.insert_chars(kc)
                             self._current_keychord = []
                         elif is_keychord_handled is None:
                             # current_keychord is no suffix for
-                            self.message('Unknown keychord: %s' % ' '.join(self._current_keychord))
+                            self.message('Unknown keychord: %s' % ' '.join(self._current_keychord),
+                                         show_log=False)
                             self._current_keychord = []
                         else:
                             self.message(' '.join(self._current_keychord), show_log=False)
