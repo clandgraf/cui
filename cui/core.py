@@ -132,11 +132,14 @@ def run_hook(path, *args, **kwargs):
 
 # Windows
 
-def new_window_set():
-    Core()._wm.new_window_set()
+def new_window_set(name=None):
+    return Core()._wm.new_window_set(name)
 
 def delete_window_set():
     Core()._wm.delete_window_set()
+
+def delete_window_set_by_name(name):
+    Core()._wm.delete_window_set_by_name(name)
 
 def next_window_set():
     Core()._wm.next_window_set()

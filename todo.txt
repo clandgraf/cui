@@ -3,6 +3,10 @@
 TODO
 ====
 
+ --> Minibuffer refactoring
+
+ --> pydevd: Remove break-line when thread is not suspended
+
  --> try: make socketselector part of core.
      --> socket_selector -> input_selector
      --> input_selector.register_waitable(waitable, handler)

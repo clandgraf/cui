@@ -445,6 +445,7 @@ class WindowManager(object):
     def __init__(self, screen):
         self._screen = screen
         self._window_sets = [WindowSet(screen)]
+        self._named_window_sets = {}
         self._active_window_set = 0
 
     @property
@@ -458,18 +459,36 @@ class WindowManager(object):
     def active_window_set(self):
         return self._window_sets[self._active_window_set]
 
-    def new_window_set(self):
-        self._window_sets.insert(self._active_window_set + 1,
-                                 WindowSet(self._screen))
-        self._active_window_set += 1
+    def new_window_set(self, name=None):
+        if name and name in self._named_window_sets:
+            return self._window_sets[self._named_window_sets[name]]
 
-    def delete_window_set(self):
-        if self._active_window_set == 0:
+        idx = self._active_window_set + 1
+        ws = WindowSet(self._screen)
+        self._window_sets.insert(idx, ws)
+        if name:
+            self._named_window_sets[name] = idx
+        self._active_window_set += 1
+        return ws
+
+    def _delete_window_set_by_index(self, index):
+        if index == 0:
             core.message('Can not delete window set 1.')
             return
 
-        self._window_sets.pop(self._active_window_set)
-        self._active_window_set %= len(self._window_sets)
+        self._named_window_sets = {k:v for k, v in self._named_window_sets.items()
+                                   if v != index}
+        self._window_sets.pop(index)
+        if index >= self._active_window_set:
+            self._active_window_set -= 1
+
+    def delete_window_set(self):
+        self._delete_window_set_by_index(self._active_window_set)
+
+    def delete_window_set_by_name(self, name):
+        index = self._named_window_sets.get(name)
+        if index:
+            self._delete_window_set_by_index(index)
 
     def next_window_set(self):
         self._active_window_set += 1
