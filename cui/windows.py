@@ -65,34 +65,6 @@ class WindowBase(object):
         return _col
 
 
-class MiniBuffer(WindowBase):
-    def __init__(self, screen):
-        super(MiniBuffer, self).__init__(
-            (1, screen.getmaxyx()[1], screen.getmaxyx()[0] - 1, 0))
-        self._screen = screen
-
-    def get_content_dimensions(self, dim):
-        return (dim[0], dim[1] - 1, dim[2], dim[3])
-
-    def resize(self):
-        max_y, max_x = self._screen.getmaxyx()
-        self._update_dimensions((1, max_x, max_y - 1, 0))
-
-    def render(self):
-        left, right = self._core.mini_buffer
-        left = left.split('\n', 1)[0]
-        right = right.split('\n', 1)[0]
-        space = (self.dimensions[1] - len(left) - len(right))
-        if space < 0:
-            left = left[:(space - 4)] + '... '
-
-        self._render_line([left, ' ' * max(0, space), right],
-                          ' ' * self._core.get_variable(['tab-stop']),
-                          0)
-        self._handle.clrtoeol()
-        self._handle.noutrefresh()
-
-
 class Window(WindowBase):
     def __init__(self, dimensions, displayed_buffer):
         super(Window, self).__init__(dimensions)
@@ -123,8 +95,9 @@ class Window(WindowBase):
         bname = self._buffer.buffer_name()
         mline = ('  %s' + (' ' * (self.dimensions[1] - len(bname) - 2))) % bname
         style = 'modeline_active' if is_active else 'modeline_inactive'
+        fg = self._core.get_foreground_color(style)
         attr  = curses.color_pair(self._core.get_index_for_color(
-            self._core.get_foreground_color(style),
+            fg,
             style
         )) | curses.A_BOLD
         self._handle.insstr(self.dimensions[0], 0, mline, attr)

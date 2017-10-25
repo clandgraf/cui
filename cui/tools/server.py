@@ -63,37 +63,6 @@ class Session(object):
         return '%s:%s' % self.address
 
 
-class SocketSelector(object):
-    def __init__(self):
-        self._sockets = []
-        self._servers = {}
-
-    def register_socket(self, sock, server):
-        if not cui.is_update_func(self._process_sockets):
-            cui.message('Starting socket selector')
-            cui.update_func(self._process_sockets)
-        self._sockets.append(sock)
-        self._servers[id(sock)] = server
-
-    def unregister_socket(self, sock):
-        self._sockets.remove(sock)
-        del self._servers[id(sock)]
-        if not self._sockets and cui.is_update_func(self._process_sockets):
-            cui.message('Stopping socket selector')
-            cui.remove_update_func(self._process_sockets)
-
-    def _process_sockets(self):
-        if not self._sockets:
-            return
-
-        sock_read, _, _ = select.select(self._sockets, [], [], 0)
-
-        for sock in sock_read:
-            self._servers[id(sock)].process_socket(sock)
-
-socket_selector = SocketSelector()
-
-
 class Server(object):
     def __init__(self, session_factory, host_var, port_var):
         super(Server, self).__init__()
@@ -114,7 +83,7 @@ class Server(object):
         self.server.listen(5)
         cui.message('Listening on %s:%s' % self.server.getsockname())
 
-        socket_selector.register_socket(self.server, self)
+        cui.register_waitable(self.server, self)
         cui.add_exit_handler(self.shutdown)
 
     def _accept_client(self):
@@ -122,9 +91,9 @@ class Server(object):
         session = self.session_factory(client_socket)
         cui.message('Connection received from %s:%s' % session.address)
         self.clients[id(client_socket)] = session
-        socket_selector.register_socket(client_socket, self)
+        cui.register_waitable(client_socket, self)
 
-    def process_socket(self, sock):
+    def read(self, sock):
         if sock is self.server:
             self._accept_client()
         else:
@@ -149,7 +118,7 @@ class Server(object):
                 finally:
                     del self.clients[socket_key]
         finally:
-            socket_selector.unregister_socket(sock)
+            cui.unregister_waitable(sock)
 
     def shutdown(self):
         for session in self.clients.values():

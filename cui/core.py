@@ -8,15 +8,18 @@ import imp
 import math
 import traceback
 import functools
+import sys
 
 from cui import keyreader
 from cui.buffers import LogBuffer, BufferListBuffer
 from cui.logger import Logger
 from cui.keymap import WithKeymap
 from cui.util import deep_get, deep_put
-from cui.colors import ColorCore
-from cui.windows import WindowManager, MiniBuffer
+from cui.colors import ColorCore, ColorException
+from cui.windows import WindowManager
+from cui.mini_buffer import MiniBuffer
 from cui.singleton import Singleton, combine_meta_classes
+from cui.io_selector import IOSelector
 
 __all__ = ['init_func', 'Core']
 
@@ -93,13 +96,22 @@ def message(msg, show_log=True, log_message=None):
 # Colors
 
 def def_colors(name, string):
-    return Core().def_colors(name, string)
+    try:
+        return Core().def_colors(name, string)
+    except ColorException as e:
+        message('%s' % e)
 
 def def_background(bg_type, color_name):
-    return Core().def_background(bg_type, color_name)
+    try:
+        return Core().def_background(bg_type, color_name)
+    except ColorException as e:
+        message('%s' % e)
 
 def def_foreground(fg_type, color_name):
-    return Core().def_foreground(fg_type, color_name)
+    try:
+        return Core().def_foreground(fg_type, color_name)
+    except ColorException as e:
+        message('%s' % e)
 
 # Variables
 
@@ -129,6 +141,14 @@ def remove_hook(path, fn):
 def run_hook(path, *args, **kwargs):
     for hook in Core().get_variable(path):
         hook(*args, **kwargs)
+
+# Input Waitables
+
+def register_waitable(waitable, handler):
+    return Core().io_selector.register(waitable, handler)
+
+def unregister_waitable(waitable):
+    return Core().io_selector.unregister(waitable)
 
 # Windows
 
@@ -309,6 +329,7 @@ class Core(WithKeymap,
     def __init__(self):
         super(Core, self).__init__()
         self.logger = Logger()
+        self.io_selector = IOSelector(timeout=None, as_update_func=False)
         self.buffers = [LogBuffer()]
         self._state = {}
         self._screen = None
@@ -426,7 +447,7 @@ class Core(WithKeymap,
         self._screen = curses.initscr()
         curses.savetty()
         curses.raw(1)
-        curses.nonl() # < --- testing testing testing
+        curses.nonl()
         curses.noecho()
         curses.curs_set(0)
         self._screen.keypad(1)
@@ -435,8 +456,6 @@ class Core(WithKeymap,
         # Init Colors
         curses.start_color()
         self._init_colors()
-        #self._screen.bkgd(self.get_index_for_type())
-        #self._screen.refresh()
         self.add_exit_handler(self._quit_curses)
         self._wm = WindowManager(self._screen)
         self._mini_buffer_win = MiniBuffer(self._screen)
@@ -504,46 +523,47 @@ class Core(WithKeymap,
     def input_delegate(self):
         return self._wm.selected_window().buffer()
 
+    def read(self, _):
+        current_buffer = self.current_buffer()
+        input_timeout = self.get_variable(['core', 'read-timeout'])
+        kc, is_input = keyreader.read_keychord(self._screen,
+                                               input_timeout,
+                                               current_buffer.takes_input)
+        if kc is not None:
+            if kc == keyreader.EVT_RESIZE:
+                self._handle_resize()
+            else:
+                try:
+                    self._current_keychord.append(kc)
+                    is_keychord_handled = self.handle_input(self._current_keychord)
+                    if is_keychord_handled:
+                        # current_keychord was handled via keymap
+                        self._current_keychord = []
+                    elif is_input and len(self._current_keychord) == 1:
+                        # kc is direct input that was not handled and not beginning of sequence
+                        current_buffer.insert_chars(kc)
+                        self._current_keychord = []
+                    elif is_keychord_handled is None:
+                        # current_keychord is no suffix for
+                        self.message('Unknown keychord: %s' % ' '.join(self._current_keychord),
+                                     show_log=False)
+                        self._current_keychord = []
+                    else:
+                        self.message(' '.join(self._current_keychord), show_log=False)
+                except:
+                    # TODO use message, separate minibuffer message and log message
+                    self.logger.log(traceback.format_exc())
+                    self._current_keychord = []
+
     def run(self):
         self._init_curses()
         imp.load_source('cui._user_init', './init.py')
         self._init_packages()
         self._post_init_packages()
+        self.io_selector.register(sys.stdin, self)
         self._running = True
         while self._running:
-            self._update_packages()
             self._update_ui()
-
-            current_buffer = self.current_buffer()
-            input_timeout = self.get_variable(['core', 'read-timeout'])
-            kc, is_input = keyreader.read_keychord(self._screen,
-                                                   input_timeout,
-                                                   current_buffer.takes_input)
-            if kc is not None:
-                if kc == keyreader.EVT_RESIZE:
-                    self._handle_resize()
-                else:
-                    try:
-                        self._current_keychord.append(kc)
-                        is_keychord_handled = self.handle_input(self._current_keychord)
-                        if is_keychord_handled:
-                            # current_keychord was handled via keymap
-                            self.message('', show_log=False)
-                            self._current_keychord = []
-                        elif is_input and len(self._current_keychord) == 1:
-                            # kc is direct input that was not handled and not beginning of sequence
-                            current_buffer.insert_chars(kc)
-                            self._current_keychord = []
-                        elif is_keychord_handled is None:
-                            # current_keychord is no suffix for
-                            self.message('Unknown keychord: %s' % ' '.join(self._current_keychord),
-                                         show_log=False)
-                            self._current_keychord = []
-                        else:
-                            self.message(' '.join(self._current_keychord), show_log=False)
-                    except:
-                        # TODO use message, separate minibuffer message and log message
-                        self.logger.log(traceback.format_exc())
-                        self._current_keychord = []
+            self.io_selector.select()
 
         self._run_exit_handlers()

@@ -12,6 +12,7 @@ from cui.core import \
     def_colors, def_foreground, def_background, \
     def_variable, get_variable, set_variable, \
     def_hook, add_hook, remove_hook, run_hook, \
+    register_waitable, unregister_waitable, \
     new_window_set, delete_window_set, delete_window_set_by_name, next_window_set, \
     previous_window_set, select_window, selected_window, delete_selected_window, \
     delete_all_windows, find_window, split_window_below, split_window_right, \

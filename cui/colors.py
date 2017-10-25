@@ -2,6 +2,45 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+"""
+This module abstracts ncurses color management.
+
+The class ColorCore provides methods to define colors, as well as
+semantic foreground and background color definitions.
+
+Color values are defined as strings that map to a triple of 8
+bit red/green/blue values. These colors may be referenced
+in semantic background and foreground definitions, , such as
+``selection`` or ``error``. Background definitions are limited to
+the types provided by this module, which are:
+
+- default: the default background color
+- selection: default color for the selected row
+- modeline_active: the background color of the modeline of the
+  selected window
+- modeline_inactive: the background color of all other modelines
+- special: This background is be used to highlight important
+  sections of the screen, e.g. the current line in a debugger
+
+New foreground definitions may be added by calling defcolor*.
+
+Technical information:
+
+The number of possible colors, backgrounds and foregrounds is
+limited by the number of available colors and pairs in curses,
+and the way ncurses color_pairs are mapped to cui color
+combinations.
+
+Given a combination of foreground-color and background-type the
+corresponding color_pair index is calculated by packing these into the
+8 bit values that ncurses 5 ABI supports, where the lower 3 bit are
+used for background types, and the remaining 5 bit for foreground
+colors.
+
+This max. 255 pairs (pair_index 0 is fixed) are initialized on startup,
+as well as when new colors are defined or backgrounds are modified.
+"""
+
 import curses
 import re
 
@@ -33,6 +72,8 @@ FGCOL_MAP = {
     'info':              'green'
 }
 
+# TODO This may be optimized by mapping backgrounds using the
+# same color to the same index
 BGCOL_MAP = {
     'default':           {'index': 0, 'color': 'black'},
     'selection':         {'index': 1, 'color': 'white'},
@@ -56,6 +97,10 @@ def color_pair_from_type(fg_type='default', bg_type='default'):
     return color_pair_from_color(FGCOL_MAP[fg_type], bg_type)
 
 
+class ColorException(Exception):
+    pass
+
+
 class ColorCore(object):
     # TODO reset colors on exit
 
@@ -76,7 +121,7 @@ class ColorCore(object):
     def def_colors(self, name, string):
         match = COLOR_RE.match(string)
         if not match:
-            raise Exception('Illegal color string for %s.' % name)
+            raise ColorException('Illegal color string for %s.' % name)
 
         return self.def_color(name,
                               int(match.group(1), 16),
@@ -91,9 +136,9 @@ class ColorCore(object):
 
     def def_colorc(self, name, r, g, b):
         if not curses.can_change_color():
-            raise Exception('Can not set colors.')
+            raise ColorException('Can not set colors.')
         if not len(COLOR_MAP.values()) < 32:
-            raise Exception('Maximum number of colors (%s) is reached' % curses.COLORS)
+            raise ColorException('Maximum number of colors (32) is reached.')
 
         color_name_exists = name in COLOR_MAP
 
@@ -109,11 +154,16 @@ class ColorCore(object):
             self._init_pair(color_index, bg_entry)
 
     def def_foreground(self, fg_type, color_name):
+        if color_name is not None and color_name not in COLOR_MAP:
+            raise ColorException('No color named %s' % color_name)
+
         FGCOL_MAP[fg_type] = color_name
 
     def def_background(self, bg_type, color_name):
         if bg_type not in BGCOL_MAP:
-            raise Exception('Background type %s is not defined.' % bg_type)
+            raise ColorException('Background type %s is not defined.' % bg_type)
+        if color_name is not None and color_name not in COLOR_MAP:
+            raise ColorException('No color named %s' % color_name)
 
         BGCOL_MAP[bg_type]['color'] = color_name
         self._init_background(BGCOL_MAP[bg_type])
