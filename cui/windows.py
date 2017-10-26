@@ -45,6 +45,13 @@ class WindowBase(object):
                             curses.color_pair(self._core.get_index_for_color(foreground,
                                                                              background)))
 
+    def _add_integer(self, row, col, integer, foreground='default', background='default', attributes=0):
+        foreground = self._core.get_foreground_color(foreground) or self._core.get_foreground_color('default')
+        self._handle.addch(row, col, integer,
+                           attributes |
+                           curses.color_pair(self._core.get_index_for_color(foreground,
+                                                                            background)))
+
     def _render_line(self, line, soft_tabs, row, col=0,
                      foreground='default', background='default', attributes=0):
         _col = col
@@ -52,6 +59,9 @@ class WindowBase(object):
             prepared = line.replace('\t', soft_tabs)[:(self.dimensions[1] - _col)]
             self._add_string(row, _col, prepared, foreground, background, attributes)
             _col += len(prepared)
+        elif isinstance(line, int):
+            self._add_integer(row, _col, line, foreground, background, attributes)
+            _col += 1
         elif isinstance(line, list):
             for sub_part in line:
                 _col = self._render_line(sub_part, soft_tabs, row, _col,
@@ -386,7 +396,7 @@ class WindowSet(object):
         col = w['dimensions'][3] + w['content'][0]['dimensions'][1]
         row = w['dimensions'][2]
         for r in range(0, w['dimensions'][0]):
-            self._screen.addch(row + r, col, ord('|'),
+            self._screen.addch(row + r, col, curses.ACS_VLINE,
                                curses.color_pair(self._core.get_index_for_type('divider',
                                                                                'default')))
 
