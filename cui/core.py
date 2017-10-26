@@ -535,7 +535,6 @@ class Core(WithKeymap,
         kc, is_input = keyreader.read_keychord(self._screen,
                                                input_timeout,
                                                current_buffer.takes_input)
-        self.logger.log('received key: %s' % kc)
         if kc is not None:
             if kc == keyreader.EVT_RESIZE:
                 pass

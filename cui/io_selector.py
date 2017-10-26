@@ -18,7 +18,16 @@ class IOSelector(object):
     documentation, as well as a handler for each waitable. A handler must
     be a callable with the signature ``fn(waitable)`` to process the waitable.
     New waitables may be registered by calling method register
-    and unregistered by calling unregister.
+    and unregistered by calling unregister. If a registered waitable has pending
+    input, the corresponding handler will be invoked on the next call to select.
+
+    In order to execute asynchronuous events on the thread that calls select,
+    an IOSelector object provides a self-pipe. Handlers for such events may
+    be registered and unregistered by the register_async and unregister_async
+    calls respectively. If an event, identified by a provided string is
+    dispatched by calling post_async_event, the corresponding handler function
+    will be invoked on select. Note that names must not contain line-breaks,
+    as these are used as separators for events on the pipe.
 
     On each call to select, all waitables with pending input are dispatched
     to their corresponding handler.
@@ -36,7 +45,6 @@ class IOSelector(object):
         self._async_handlers = {}
 
         # Initialize self-pipe to handle async events
-        # TODO buffersize, ensure name doesnt blow bufsize
         self._pipe = os.pipe()
         self._fd_read = os.fdopen(self._pipe[0], 'r')
         self._fd_write = os.fdopen(self._pipe[1], 'w')
@@ -61,12 +69,13 @@ class IOSelector(object):
             return
 
         readables, _, _ = select.select(self._waitables, [], [], self._timeout)
-
         for waitable in readables:
             self._handlers[id(waitable)](waitable)
 
     def register_async(self, name, handler):
-        # TODO name should contain no '\n', and not exceed bufsize
+        if '\n' in name:
+            cui.message('Line-breaks not allowed in async-handler names.')
+            return
         self._async_handlers[name] = handler
 
     def unregister_async(self, name):
@@ -77,6 +86,6 @@ class IOSelector(object):
         self._fd_write.flush()
 
     def _process_async_event(self, name):
-        name = self._fd_read.readline()
-        # TODO check if handler exists
-        self._async_handlers[name[:-1]](name[:-1])
+        name = self._fd_read.readline()[:-1]
+        if name in self._async_handlers:
+            self._async_handlers[name](name)
