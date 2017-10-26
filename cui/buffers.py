@@ -323,46 +323,108 @@ class BufferListBuffer(ListBuffer):
         return [item.buffer_name()]
 
 
+@with_current_buffer
+def expand_node(b):
+    item = b.selected_item()
+    if not b.is_expanded(item):
+        b.set_expanded(item, True)
+
+@with_current_buffer
+def collapse_node(b):
+    item = b.selected_item()
+    if b.is_expanded(item):
+        b.set_expanded(item, False)
+
 class TreeBuffer(ListBuffer):
-    def __init__(self, *args):
+    __keymap__ = {
+        '<left>': collapse_node,
+        '<right>': expand_node
+    }
+
+    def __init__(self, *args, show_handles=False):
         super(TreeBuffer, self).__init__(*args)
         self._flattened = []
+        self._show_handles = show_handles
 
     def get_children(self, item):
         return []
+
+    def is_expanded(self, item):
+        False
+
+    def set_expanded(self, item, expanded):
+        pass
+
+    def has_children(self, item):
+        False
+
+    def fetch_children(self, item):
+        pass
+
+    def _fetch_children(self, item):
+        self.fetch_children(item)
+        return self.get_children(item)
 
     def get_roots(self):
         return []
 
     def on_pre_render(self):
         self._flattened = []
-        node_stack = list(map(lambda n: {'item': n, 'depth': 0},
-                              self.get_roots()))
+
+        def _create_internal_nodes(nodes, parent=None):
+            return list(map(lambda n: {'item': n,
+                                       'first': n == nodes[0],
+                                       'last': n == nodes[-1],
+                                       'parent': parent,
+                                       'depth': 0 if parent is None else parent['depth'] + 1},
+                            nodes))
+
+        roots = self.get_roots()
+        node_stack = _create_internal_nodes(roots)
         while node_stack:
             n = node_stack.pop(0)
             self._flattened.append(n)
-            node_stack[0:0] = list(map(lambda child: {'item': child,
-                                                      'depth': n['depth'] + 1},
-                                       self.get_children(n['item'])))
+            if self.has_children(n['item']) and self.is_expanded(n['item']):
+                node_stack[0:0] = _create_internal_nodes(self.get_children(n['item']) or \
+                                                         self._fetch_children(n['item']),
+                                                         n)
 
     def items(self):
         return self._flattened
 
+    def selected_node(self):
+        return super(TreeBuffer, self).selected_item()
+
     def selected_item(self):
-        return super(TreeBuffer, self).selected_item()['item']
+        return self.selected_node()['item']
 
     def render_item(self, window, item, index):
         tree_tab = core.Core().get_variable(['tree-tab'])
         rendered_node = self.render_node(window, item['item'], item['depth'],
                                          window.dimensions[1] - tree_tab * item['depth'])
-        return [[self.render_tree_tab(window, line, tree_tab, item['depth'],
-                                      line == rendered_node[0],
-                                      line == rendered_node[-1]),
+        return [[self.render_tree_tab(window, item, line, tree_tab, line == rendered_node[0]),
                  line]
                 for line in rendered_node]
 
-    def render_tree_tab(self, window, line, tree_tab, depth, first, last):
-        return (' ' * depth * tree_tab)
+    def render_tree_tab(self, window, item, line, tree_tab, first_line):
+        lst = []
+
+        if item['depth'] != 0:
+            lst.append((curses.ACS_LLCORNER if item['last'] else curses.ACS_LTEE) \
+                       if first_line else \
+                       (' ' if item['last'] else curses.ACS_VLINE))
+
+        lst.append(('v' if self.is_expanded(item['item']) else '>') \
+                   if self._show_handles and first_line and self.has_children(item['item']) else \
+                   ' ')
+
+        while item['depth'] > 1:
+            item = item['parent']
+            lst = [' ' if item['last'] else curses.ACS_VLINE, ' ' * (tree_tab - 1)] + lst
+        if item['depth'] == 1:
+            lst = [' '] + lst
+
+        return lst
 
     def render_node(self, window, item, depth, width):
         return [item]
