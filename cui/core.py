@@ -4,11 +4,12 @@
 
 import atexit
 import curses
+import functools
 import imp
 import math
-import traceback
-import functools
+import signal
 import sys
+import traceback
 
 from cui import keyreader
 from cui.buffers import LogBuffer, BufferListBuffer
@@ -23,7 +24,10 @@ from cui.io_selector import IOSelector
 
 __all__ = ['init_func', 'Core']
 
+# TODO may be removed, input handling needs no timeout
 READ_TIMEOUT = 100
+
+TERMINAL_RESIZE_EVENT = 'SIGWINCH'
 
 # =================================== API ======================================
 
@@ -277,24 +281,6 @@ def _init_state(core):
     core.def_variable(['core', 'read-timeout'], READ_TIMEOUT)
 
 
-# def log_window(core, w, depth=0):
-#     core.logger.log('%s%s%s' % ('> ' if w == core._wm._selected_window else '  ',
-#                                 '  ' * depth,
-#                                 (w['content']
-#                                  if w['wm_type'] == 'window' else
-#                                  "#<%s dimensions=%s>"
-#                                  % (w['wm_type'], w['dimensions']))))
-#     if w['wm_type'] != 'window':
-#         log_window(core, w['content'][0], depth=depth + 1)
-#         log_window(core, w['content'][1], depth=depth + 1)
-
-
-# def log_windows():
-#     c = Core()
-#     c.logger.clear()
-#     log_window(c, c._wm._root)
-
-
 class Core(WithKeymap,
            ColorCore,
            metaclass=combine_meta_classes(Singleton, WithKeymap.__class__)):
@@ -323,7 +309,7 @@ class Core(WithKeymap,
         "S-<tab>":     previous_buffer,
         "<tab>":       next_buffer,
         "C-x C-k":     kill_current_buffer,
-        "C-x C-b":     lambda: switch_buffer(BufferListBuffer)
+        "C-x C-b":     lambda: switch_buffer(BufferListBuffer),
     }
 
     def __init__(self):
@@ -436,7 +422,10 @@ class Core(WithKeymap,
 
     def _run_exit_handlers(self):
         while len(self._exit_handlers):
-            self._exit_handlers.pop()()
+            try:
+                self._exit_handlers.pop()()
+            except:
+                self.logger.log(traceback.format_exc())
 
     def _at_exit(self):
         self._run_exit_handlers()
@@ -452,13 +441,21 @@ class Core(WithKeymap,
         curses.curs_set(0)
         self._screen.keypad(1)
         self._screen.timeout(self.get_variable(['core', 'read-timeout']))
+        self.add_exit_handler(self._quit_curses)
 
         # Init Colors
         curses.start_color()
         self._init_colors()
-        self.add_exit_handler(self._quit_curses)
+
+        # Windows
         self._wm = WindowManager(self._screen)
         self._mini_buffer_win = MiniBuffer(self._screen)
+
+        # Event Handling and Terminal resizing
+        self.io_selector.register(sys.stdin, self.read)
+        self.io_selector.register_async(TERMINAL_RESIZE_EVENT,
+                                        self._handle_resize)
+        signal.signal(signal.SIGWINCH, self._handle_resize_sig)
 
     def _quit_curses(self):
         self._mini_buffer_win = None
@@ -505,6 +502,19 @@ class Core(WithKeymap,
         self._mini_buffer_win.render()
         curses.doupdate()
 
+    def _handle_resize_sig(self, signum, frame):
+        self.io_selector.post_async_event(TERMINAL_RESIZE_EVENT)
+
+    def _handle_resize(self, _):
+        curses.endwin()
+        self._screen.refresh()
+        self._mini_buffer_win.resize()
+        self._wm.resize()
+
+        # Clear input queue
+        keyreader.read_keychord(self._screen, 0, False)
+        keyreader.read_keychord(self._screen, 0, False)
+
     @property
     def last_message(self):
         return self._last_message
@@ -512,10 +522,6 @@ class Core(WithKeymap,
     @property
     def mini_buffer(self):
         return self.get_variable(['mini-buffer-content'])()
-
-    def _handle_resize(self):
-        self._mini_buffer_win.resize()
-        self._wm.resize()
 
     def bye(self):
         self._running = False
@@ -529,9 +535,10 @@ class Core(WithKeymap,
         kc, is_input = keyreader.read_keychord(self._screen,
                                                input_timeout,
                                                current_buffer.takes_input)
+        self.logger.log('received key: %s' % kc)
         if kc is not None:
             if kc == keyreader.EVT_RESIZE:
-                self._handle_resize()
+                pass
             else:
                 try:
                     self._current_keychord.append(kc)
@@ -560,7 +567,6 @@ class Core(WithKeymap,
         imp.load_source('cui._user_init', './init.py')
         self._init_packages()
         self._post_init_packages()
-        self.io_selector.register(sys.stdin, self)
         self._running = True
         while self._running:
             self._update_ui()

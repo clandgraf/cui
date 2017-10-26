@@ -83,7 +83,7 @@ class Server(object):
         self.server.listen(5)
         cui.message('Listening on %s:%s' % self.server.getsockname())
 
-        cui.register_waitable(self.server, self)
+        cui.register_waitable(self.server, self.read)
         cui.add_exit_handler(self.shutdown)
 
     def _accept_client(self):
@@ -91,7 +91,7 @@ class Server(object):
         session = self.session_factory(client_socket)
         cui.message('Connection received from %s:%s' % session.address)
         self.clients[id(client_socket)] = session
-        cui.register_waitable(client_socket, self)
+        cui.register_waitable(client_socket, self.read)
 
     def read(self, sock):
         if sock is self.server:

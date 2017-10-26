@@ -3,6 +3,8 @@
 TODO
 ====
 
+ --> How to fix terminal resize => catch sigwinch -> write to self-pipe -> invoke core-handler
+
  --> Minibuffer refactoring
 
  --> @update_func currently not used
