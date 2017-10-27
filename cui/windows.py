@@ -454,6 +454,9 @@ class WindowManager(object):
         self._active_window_set += 1
         return ws
 
+    def has_window_set(self, name):
+        return name in self._named_window_sets
+
     def _delete_window_set_by_index(self, index):
         if index == 0:
             core.message('Can not delete window set 1.')
@@ -496,7 +499,9 @@ class WindowManager(object):
                 self._active_window_set = idx
                 return w
 
-    def find_window(self, predicate):
+    def find_window(self, predicate, current_window_set=False):
+        if current_window_set:
+            return self.active_window_set().find_window(predicate)
         for ws in self._window_sets:
             w = ws.find_window(predicate)
             if w:

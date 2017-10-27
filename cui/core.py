@@ -159,6 +159,9 @@ def unregister_waitable(waitable):
 def new_window_set(name=None):
     return Core()._wm.new_window_set(name)
 
+def has_window_set(name):
+    return Core()._wm.has_window_set(name)
+
 def delete_window_set():
     Core()._wm.delete_window_set()
 
@@ -192,8 +195,8 @@ def select_top_window():
 def select_bottom_window():
     return Core()._wm.select_bottom_window()
 
-def find_window(predicate):
-    return Core().find_window(predicate)
+def find_window(predicate, current_window_set=False):
+    return Core().find_window(predicate, current_window_set=current_window_set)
 
 def selected_window():
     return Core().selected_window()
@@ -250,14 +253,14 @@ def with_created_buffer(fn):
 def switch_buffer(buffer_object):
     return select_buffer(buffer_object)
 
-def buffer_window(buffer_object):
-    return find_window(lambda w: w.buffer() == buffer_object)
+def buffer_window(buffer_object, current_window_set=False):
+    return find_window(lambda w: w.buffer() == buffer_object, current_window_set=current_window_set)
 
 @with_created_buffer
 def buffer_visible(buffer_object, split_method=split_window_below, to_window=False):
-    win = buffer_window(buffer_object)
+    win = buffer_window(buffer_object, current_window_set=True)
     if not win:
-        win = split_method()
+        win = split_method() if split_method else selected_window()
         if win:
             win.set_buffer(buffer_object)
     if win and to_window:
@@ -390,8 +393,8 @@ class Core(WithKeymap,
     def set_variable(self, path, value=None):
         deep_put(self._state, path, value, create_path=False)
 
-    def find_window(self, predicate):
-        return self._wm.find_window(predicate)
+    def find_window(self, predicate, current_window_set=False):
+        return self._wm.find_window(predicate, current_window_set=current_window_set)
 
     def select_window(self, window):
         return self._wm.select_window(window)
