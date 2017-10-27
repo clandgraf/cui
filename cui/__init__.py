@@ -7,7 +7,7 @@ from contextlib import contextmanager
 from cui import core
 from cui.core import \
     has_run, init_func, update_func, is_update_func, remove_update_func, post_init_func, \
-    add_exit_handler, remove_exit_handler, \
+    add_exit_handler, remove_exit_handler, bye, \
     running, message, \
     def_colors, def_foreground, def_background, \
     def_variable, get_variable, set_variable, \
@@ -92,6 +92,18 @@ def exec_if_buffer_exists(expr, buffer_class, *args):
         expr(buffer_object)
 
 def kill_buffer(buffer_class, *args):
+    """
+    Remove the buffer.
+
+    If the buffer, identified by class buffer_class and arguments args, exists,
+    it will be removed from the list of buffers and replaced in all windows
+    displaying it.
+
+    :param buffer_class:
+        The class of the buffer
+    :param args:
+        The arguments of the buffer
+    """
     exec_if_buffer_exists(lambda b: core.Core().kill_buffer(b),
                           buffer_class, *args)
 

@@ -6,3 +6,4 @@ pip-selfcheck.json
 *.egg-info
 requirements.txt
 src/
+doc/build/

@@ -39,7 +39,13 @@ def has_run(fn):
 
 
 def init_func(fn):
-    """Marks a function as an initialization function."""
+    """
+    Decorator that marks a function as an initialization function.
+
+    Functions decorated with init_func will be run after curses has been initialized,
+    and the init-file has been read. The function has_run may be used to determine if
+    a function has been run.
+    """
     fn.__has_run__ = False
     @functools.wraps(fn)
     def wrapper_fn(*args, **kwargs):
@@ -55,6 +61,13 @@ def init_func(fn):
 
 
 def post_init_func(fn):
+    """
+    Decorator that marks a function as a post-initialization function.
+
+    Functions decorated with post_init_func will be executed after all init_funcs
+    have been executed. The function has_run may be used to determine if a function
+    has been run.
+    """
     fn.__has_run__ = False
     @functools.wraps(fn)
     def wrapper_fn(*args, **kwargs):
