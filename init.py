@@ -11,4 +11,4 @@ import tomorrow_night_blue
 cui.set_variable(['emacs', 'emacsclient'], 'c:/Program Files/emacs/bin/emacsclient')
 cui.set_variable(['emacs', 'file-mapping'], [('/',           'c:/cygwin/'),
                                              ('/cygdrive/c', 'c:/')])
-#cui.set_variable(['logging', 'emacs-calls'], True)
+cui.set_variable(['logging', 'pydevds-comm'], True)

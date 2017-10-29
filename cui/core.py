@@ -113,6 +113,12 @@ def message(msg, show_log=True, log_message=None):
 # Colors
 
 def def_colors(name, string):
+    """
+    Define a new color or redefine an existing color.
+
+    The color should be specified as a hex color-string in the format
+    ``#rrggbb``.
+    """
     try:
         return Core().def_colors(name, string)
     except ColorException as e:

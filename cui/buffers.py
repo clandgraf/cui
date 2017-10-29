@@ -326,13 +326,13 @@ class BufferListBuffer(ListBuffer):
 @with_current_buffer
 def expand_node(b):
     item = b.selected_item()
-    if not b.is_expanded(item):
+    if not b.is_expanded(item) and b.has_children(item):
         b.set_expanded(item, True)
 
 @with_current_buffer
 def collapse_node(b):
     item = b.selected_item()
-    if b.is_expanded(item):
+    if b.is_expanded(item) and b.has_children(item):
         b.set_expanded(item, False)
 
 class TreeBuffer(ListBuffer):
@@ -370,7 +370,6 @@ class TreeBuffer(ListBuffer):
 
     def on_pre_render(self):
         self._flattened = []
-
         def _create_internal_nodes(nodes, parent=None):
             return list(map(lambda n: {'item': n,
                                        'first': n == nodes[0],
