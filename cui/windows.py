@@ -26,6 +26,14 @@ class WindowBase(object):
         self._internal_dimensions = dimensions
         self.dimensions = self.get_content_dimensions(dimensions)
 
+    @property
+    def columns(self):
+        return self.dimensions[1]
+
+    @property
+    def rows(self):
+        return self.dimensions[0]
+
     def _update_dimensions(self, dimensions):
         self._internal_dimensions = dimensions
         self._handle.resize(*dimensions[:2])
@@ -408,23 +416,20 @@ class WindowSet(object):
             w['content'].render(w == self._selected_window)
 
 
-@forward(lambda self: self.active_window_set())
+@forward(lambda self: self.active_window_set(),
+         ['selected_window',
+          'select_next_window',
+          'select_previous_window',
+          'select_left_window',
+          'select_right_window',
+          'select_top_window',
+          'select_bottom_window',
+          'split_window_below',
+          'split_window_right',
+          'delete_selected_window',
+          'delete_all_windows',
+          'render'])
 class WindowManager(object):
-    __forwards__ = [
-        'selected_window',
-        'select_next_window',
-        'select_previous_window',
-        'select_left_window',
-        'select_right_window',
-        'select_top_window',
-        'select_bottom_window',
-        'split_window_below',
-        'split_window_right',
-        'delete_selected_window',
-        'delete_all_windows',
-        'render'
-    ]
-
     def __init__(self, screen):
         self._screen = screen
         self._window_sets = [WindowSet(screen)]

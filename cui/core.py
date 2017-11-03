@@ -15,7 +15,7 @@ from cui import keyreader
 from cui.buffers import LogBuffer, BufferListBuffer
 from cui.logger import Logger
 from cui.keymap import WithKeymap
-from cui.util import deep_get, deep_put
+from cui.util import deep_get, deep_put, forward
 from cui.colors import ColorCore, ColorException
 from cui.windows import WindowManager
 from cui.mini_buffer import MiniBuffer
@@ -146,24 +146,6 @@ def get_variable(path):
 
 def set_variable(path, value=None):
     return Core().set_variable(path, value)
-
-# Hooks
-
-def def_hook(path):
-    return Core().def_variable(path, [])
-
-def add_hook(path, fn):
-    hooks = Core().get_variable(path)
-    if fn not in hooks:
-        hooks.append(fn)
-
-def remove_hook(path, fn):
-    hooks = Core().get_variable(path)
-    hooks.remove(fn)
-
-def run_hook(path, *args, **kwargs):
-    for hook in Core().get_variable(path):
-        hook(*args, **kwargs)
 
 # Input Waitables
 
@@ -302,7 +284,9 @@ def _init_state(core):
     core.def_variable(['mini-buffer-content'], mini_buffer_default)
     core.def_variable(['core', 'read-timeout'], READ_TIMEOUT)
 
-
+@forward(lambda self: self._wm,
+         ['find_window', 'select_window', 'delete_selected_window', 'delete_all_windows',
+          'split_window_below', 'split_window_right', 'selected_window'])
 class Core(WithKeymap,
            ColorCore,
            metaclass=combine_meta_classes(Singleton, WithKeymap.__class__)):
@@ -411,27 +395,6 @@ class Core(WithKeymap,
 
     def set_variable(self, path, value=None):
         deep_put(self._state, path, value, create_path=False)
-
-    def find_window(self, predicate, current_window_set=False):
-        return self._wm.find_window(predicate, current_window_set=current_window_set)
-
-    def select_window(self, window):
-        return self._wm.select_window(window)
-
-    def delete_selected_window(self):
-        self._wm.delete_selected_window()
-
-    def delete_all_windows(self):
-        self._wm.delete_all_windows()
-
-    def split_window_below(self):
-        return self._wm.split_window_below()
-
-    def split_window_right(self):
-        return self._wm.split_window_right()
-
-    def selected_window(self):
-        return self._wm.selected_window()
 
     def add_exit_handler(self, handler_fn):
         self._exit_handlers.append(handler_fn)

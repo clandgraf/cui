@@ -11,7 +11,6 @@ from cui.core import \
     running, message, \
     def_colors, def_foreground, def_background, \
     def_variable, get_variable, set_variable, \
-    def_hook, add_hook, remove_hook, run_hook, \
     register_waitable, unregister_waitable, \
     new_window_set, has_window_set, delete_window_set, delete_window_set_by_name, next_window_set, \
     previous_window_set, select_window, selected_window, delete_selected_window, \
@@ -20,6 +19,27 @@ from cui.core import \
     kill_current_buffer, next_buffer, previous_buffer
 from cui import buffers
 from cui.buffers import with_current_buffer
+
+
+# Hooks
+
+def def_hook(path):
+    return def_variable(path, [])
+
+def add_hook(path, fn):
+    hooks = get_variable(path)
+    if fn not in hooks:
+        hooks.append(fn)
+
+def remove_hook(path, fn):
+    hooks = get_variable(path)
+    hooks.remove(fn)
+
+def run_hook(path, *args, **kwargs):
+    for hook in get_variable(path):
+        hook(*args, **kwargs)
+
+# Windows
 
 @contextmanager
 def window_selected(window):

@@ -131,35 +131,53 @@ class Buffer(WithKeymap):
 
 @with_current_buffer
 def scroll_up(b):
-    """Scroll current buffer up."""
+    """Scroll current buffer one line up."""
     b.scroll_up()
 
 @with_current_buffer
+def scroll_page_up(b):
+    """Scroll current buffer one page-size up."""
+    b.scroll_page_up()
+
+@with_current_buffer
 def scroll_down(b):
-    """Scroll current buffer down."""
+    """Scroll current buffer one line down."""
     b.scroll_down()
+
+@with_current_buffer
+def scroll_page_down(b):
+    """Scroll current buffer one page-size down."""
+    b.scroll_page_down()
 
 class ScrollableBuffer(Buffer):
     __keymap__ = {
-        'S-<up>':   scroll_up,
-        'S-<down>': scroll_down
+        'S-<up>':     scroll_up,
+        'S-<pgup>':   scroll_page_up,
+        'S-<down>':   scroll_down,
+        'S-<pgdown>': scroll_page_down,
     }
 
     def __init__(self, *args):
         super(ScrollableBuffer, self).__init__(*args)
         self.def_variable(['win/buf', 'first-row'], 0)
 
-    def scroll_up(self):
-        first_row = self.get_variable(['win/buf', 'first-row'])
-        if first_row > 0:
-            self.set_variable(['win/buf', 'first-row'],
-                              first_row - 1)
+    def scroll_up(self, step=1):
+        self.set_variable(['win/buf', 'first-row'],
+                          max(0,
+                              self.get_variable(['win/buf', 'first-row']) - step))
 
-    def scroll_down(self):
-        first_row = self.get_variable(['win/buf', 'first-row'])
-        if first_row + 4 < self.line_count():
-            self.set_variable(['win/buf', 'first-row'],
-                              first_row + 1)
+    @with_window
+    def scroll_page_up(self, window):
+        self.scroll_up(window.rows)
+
+    def scroll_down(self, step=1):
+        self.set_variable(['win/buf', 'first-row'],
+                          min(max(0, self.line_count() - 4),
+                              self.get_variable(['win/buf', 'first-row']) + step))
+
+    @with_window
+    def scroll_page_down(self, window):
+        self.scroll_down(window.rows)
 
 
 @with_current_buffer
@@ -168,9 +186,29 @@ def previous_item(b):
     b.item_up()
 
 @with_current_buffer
+def item_page_up(b):
+    """Moves selection one page up."""
+    b.item_page_up()
+
+@with_current_buffer
+def item_home(b):
+    """Select the first item in buffer."""
+    b.item_home()
+
+@with_current_buffer
 def next_item(b):
     """Select the next item."""
     b.item_down()
+
+@with_current_buffer
+def item_page_down(b):
+    """Moves selection one page down."""
+    b.item_page_down()
+
+@with_current_buffer
+def item_end(b):
+    """Select the last item in buffer."""
+    b.item_end()
 
 @with_current_buffer
 def select_item(b):
@@ -185,7 +223,11 @@ def recenter_selection(b):
 class ListBuffer(ScrollableBuffer):
     __keymap__ = {
         '<up>':     previous_item,
+        '<pgup>':   item_page_up,
+        '<home>':   item_home,
         '<down>':   next_item,
+        '<pgdown>': item_page_down,
+        '<end>':    item_end,
         'C-l':      recenter_selection,
         '<enter>':  select_item
     }
@@ -208,16 +250,32 @@ class ListBuffer(ScrollableBuffer):
             self.set_variable(['win/buf', 'first-row'],
                               minmax(0, center, self.line_count() - 4))
 
-    def item_up(self):
+    def item_up(self, step=1):
         self.set_variable(['win/buf', 'selected-item'],
-                          max(0, self.get_variable(['win/buf', 'selected-item']) - 1))
+                          max(0, self.get_variable(['win/buf', 'selected-item']) - step))
         self.recenter(out_of_bounds=True)
 
-    def item_down(self):
+    def item_home(self):
+        self.set_variable(['win/buf', 'selected-item'], 0)
+        self.recenter(out_of_bounds=True)
+
+    @with_window
+    def item_page_up(self, window):
+        self.item_up(window.rows // self._item_height)
+
+    def item_down(self, step=1):
         self.set_variable(['win/buf', 'selected-item'],
-                          min(self.get_variable(['win/buf', 'selected-item']) + 1,
+                          min(self.get_variable(['win/buf', 'selected-item']) + step,
                               self.item_count() - 1))
         self.recenter(out_of_bounds=True)
+
+    def item_end(self):
+        self.set_variable(['win/buf', 'selected-item'], self.item_count() - 1)
+        self.recenter(out_of_bounds=True)
+
+    @with_window
+    def item_page_down(self, window):
+        self.item_down(window.rows // self._item_height)
 
     def selected_item(self):
         return self.items()[self.get_variable(['win/buf', 'selected-item'])]

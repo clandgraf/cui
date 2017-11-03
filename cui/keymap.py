@@ -5,7 +5,9 @@
 from cui.util import deep_put, deep_get, get_base_classes
 
 skey_map = set(['<f1>', '<f2>', '<f3>', '<f4>', '<f5>', '<f6>', '<f7>', '<f8>',
-                '<tab>', '<del>', '<enter>', '<down>', '<up>', '<left>', '<right>'])
+                '<f9>', '<f10>', '<f11>', '<f12>',
+                '<tab>', '<del>', '<enter>', '<down>', '<up>', '<left>', '<right>',
+                '<pgup>', '<pgdown>', '<home>', '<end>'])
 modifiers = ['C', 'M', 'S']
 modifier_set = set(modifiers)
 

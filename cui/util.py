@@ -8,7 +8,7 @@ import sys
 from operator import add
 from functools import reduce
 
-def forward(to):
+def forward(to, methods):
     """
     Class Decorator that forwards method calls to another object.
 
@@ -18,13 +18,13 @@ def forward(to):
     ``__forwards__``, that lists the method names that should be
     forwarded.
     """
-    def _create_forwarder(method_name):
+    def _create_forwarder(method):
         def _forward_fn(self, *args, **kwargs):
-            return getattr(to(self), method_name)(*args, **kwargs)
+            return getattr(to(self), method)(*args, **kwargs)
         return _forward_fn
     def _forward(cls):
-        for method_name in cls.__forwards__:
-            setattr(cls, method_name, _create_forwarder(method_name))
+        for method in methods:
+            setattr(cls, method, _create_forwarder(method))
         return cls
     return _forward
 
