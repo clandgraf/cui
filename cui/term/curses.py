@@ -3,6 +3,9 @@
 # found in the LICENSE file.
 
 import curses
+import signal
+
+TERMINAL_RESIZE_EVENT = 'SIGWINCH'
 
 # ncurses 6 gives us 256 colors but python uses the old ABI
 # we are restricted to 256 color_pairs,  from which we use
@@ -97,6 +100,40 @@ class CursesFrame(object):
         self._core = core
         self._color_index_map = DEFAULT_COLOR_INDEX_MAP.copy()
 
+        # Init Curses
+        self._screen = curses.initscr()
+        curses.savetty()
+        curses.raw(1)
+        curses.nonl()
+        curses.noecho()
+        curses.curs_set(0)
+        self._screen.keypad(1)
+        self._screen.timeout(self.get_variable(['core', 'read-timeout']))
+        self._core.add_exit_handler(self.close)
+
+        # Init Colors
+        curses.start_color()
+        self._init_colors()
+
+        self._core.io_selector.register(sys.stdin, self._read_input)
+        self._core.io_selector.register_async(TERMINAL_RESIZE_EVENT,
+                                              self._handle_resize)
+        signal.signal(signal.SIGWINCH, self._handle_resize_sig)
+
+    def close(self):
+        self._core.remove_exit_handler(self.close)
+        self._wm.shutdown()
+        curses.resetty()
+        curses.endwin()
+
+    # ------------ Terminal: Input & Resizing --------------
+
+    def read_input(self):
+        pass
+
+    def handle_resize_sig(self):
+        pass
+
     # ------------ Colors: Compute pair indices ------------
 
     def _color_pair_from_indices(fg_index, bg_index):
@@ -112,7 +149,7 @@ class CursesFrame(object):
 
     # ------------ Colors: Initialization ------------
 
-    def init_colors(self):
+    def _init_colors(self):
         for bg_entry in self._core.get_backgrounds():
             self._init_background(BG_INDEX_MAP[bg_entry],
                                   self._core.get_background_color(bg_entry))

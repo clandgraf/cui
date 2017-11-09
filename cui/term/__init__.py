@@ -33,9 +33,6 @@ class Frame(object):
     def __init__(self, core):
         self._core = core
 
-    def init_colors(self):
-        raise NotImplementedError()
-
     def def_colorc(self, name, r, g, g):
         raise NotImplementedError()
 
