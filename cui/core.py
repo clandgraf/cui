@@ -18,7 +18,6 @@ from cui.keymap import WithKeymap
 from cui.util import deep_get, deep_put, forward
 from cui.colors import ColorCore, ColorException
 from cui.windows import WindowManager
-from cui.mini_buffer import MiniBuffer
 from cui.singleton import Singleton, combine_meta_classes
 from cui.io_selector import IOSelector
 
@@ -434,7 +433,6 @@ class Core(WithKeymap,
 
         # Windows
         self._wm = WindowManager(self._screen)
-        self._mini_buffer_win = MiniBuffer(self._screen)
 
         # Event Handling and Terminal resizing
         self.io_selector.register(sys.stdin, self.read)
@@ -443,7 +441,7 @@ class Core(WithKeymap,
         signal.signal(signal.SIGWINCH, self._handle_resize_sig)
 
     def _quit_curses(self):
-        self._mini_buffer_win = None
+        self._wm.shutdown()
         curses.resetty()
         curses.endwin()
 
@@ -484,7 +482,6 @@ class Core(WithKeymap,
 
     def _update_ui(self):
         self._wm.render()
-        self._mini_buffer_win.render()
         curses.doupdate()
 
     def _handle_resize_sig(self, signum, frame):
@@ -493,7 +490,6 @@ class Core(WithKeymap,
     def _handle_resize(self, _):
         curses.endwin()
         self._screen.refresh()
-        self._mini_buffer_win.resize()
         self._wm.resize()
 
         # Clear input queue

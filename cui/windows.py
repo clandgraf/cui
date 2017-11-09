@@ -83,6 +83,34 @@ class WindowBase(object):
         return _col
 
 
+class MiniBuffer(WindowBase):
+    def __init__(self, screen):
+        super(MiniBuffer, self).__init__(
+            (1, screen.getmaxyx()[1], screen.getmaxyx()[0] - 1, 0))
+        self._screen = screen
+
+    def get_content_dimensions(self, dim):
+        return (dim[0], dim[1] - 1, dim[2], dim[3])
+
+    def resize(self):
+        max_y, max_x = self._screen.getmaxyx()
+        self._update_dimensions((1, max_x, max_y - 1, 0))
+
+    def render(self):
+        left, right = self._core.mini_buffer
+        left = left.split('\n', 1)[0]
+        right = right.split('\n', 1)[0]
+        space = (self.dimensions[1] - len(left) - len(right))
+        if space < 0:
+            left = left[:(space - 4)] + '... '
+
+        self._render_line([left, ' ' * max(0, space), right],
+                          ' ' * self._core.get_variable(['tab-stop']),
+                          0)
+        self._handle.clrtoeol()
+        self._handle.noutrefresh()
+
+
 class Window(WindowBase):
     def __init__(self, dimensions, displayed_buffer):
         super(Window, self).__init__(dimensions)
@@ -427,14 +455,17 @@ class WindowSet(object):
           'split_window_below',
           'split_window_right',
           'delete_selected_window',
-          'delete_all_windows',
-          'render'])
+          'delete_all_windows'])
 class WindowManager(object):
     def __init__(self, screen):
         self._screen = screen
         self._window_sets = [WindowSet(screen)]
         self._named_window_sets = {}
         self._active_window_set = 0
+        self._mini_buffer_win = MiniBuffer(self._screen)
+
+    def shutdown(self):
+        self._mini_buffer_win = None
 
     @property
     def window_set_index(self):
@@ -490,8 +521,13 @@ class WindowManager(object):
         self._active_window_set %= len(self._window_sets)
 
     def resize(self):
+        self._mini_buffer_win.resize()
         for ws in self._window_sets:
             ws.resize()
+
+    def render(self):
+        self.active_window_set().render()
+        self._mini_buffer_win.render()
 
     def replace_buffer(self, old_buffer_object, new_buffer_object):
         for ws in self._window_sets:

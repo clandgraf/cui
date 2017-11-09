@@ -135,6 +135,8 @@ class ColorCore(object):
                                int(b * 1000.0 // 255.0))
 
     def def_colorc(self, name, r, g, b):
+        color_name_exists = name in COLOR_MAP
+
         if not curses.can_change_color():
             raise ColorException('Can not set colors.')
         if not len(COLOR_MAP.values()) < 32:
@@ -173,6 +175,9 @@ class ColorCore(object):
 
     def get_foreground_color(self, fg_type):
         return FGCOL_MAP[fg_type]
+
+    def get_background_color(self, bg_type):
+        return BGCOL_MAP[bg_type]['color']
 
     def get_backgrounds(self):
         return BGCOL_MAP.keys()
