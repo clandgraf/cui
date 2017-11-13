@@ -11,22 +11,17 @@ import signal
 import sys
 import traceback
 
-from cui import keyreader
+import cui.term.curses
+
 from cui.buffers import LogBuffer, BufferListBuffer
 from cui.logger import Logger
 from cui.keymap import WithKeymap
 from cui.util import deep_get, deep_put, forward
 from cui.colors import ColorCore, ColorException
-from cui.windows import WindowManager
 from cui.singleton import Singleton, combine_meta_classes
 from cui.io_selector import IOSelector
 
 __all__ = ['init_func', 'Core']
-
-# TODO may be removed, input handling needs no timeout
-READ_TIMEOUT = 100
-
-TERMINAL_RESIZE_EVENT = 'SIGWINCH'
 
 # =================================== API ======================================
 
@@ -157,43 +152,43 @@ def unregister_waitable(waitable):
 # Windows
 
 def new_window_set(name=None):
-    return Core()._wm.new_window_set(name)
+    return Core().new_window_set(name)
 
 def has_window_set(name):
-    return Core()._wm.has_window_set(name)
+    return Core().has_window_set(name)
 
 def delete_window_set():
-    Core()._wm.delete_window_set()
+    Core().delete_window_set()
 
 def delete_window_set_by_name(name):
-    Core()._wm.delete_window_set_by_name(name)
+    Core().delete_window_set_by_name(name)
 
 def next_window_set():
-    Core()._wm.next_window_set()
+    Core().next_window_set()
 
 def previous_window_set():
-    Core()._wm.previous_window_set()
+    Core().previous_window_set()
 
 def select_window(window):
     return Core().select_window(window)
 
 def select_next_window():
-    return Core()._wm.select_next_window()
+    return Core().select_next_window()
 
 def select_previous_window():
-    return Core()._wm.select_previous_window()
+    return Core().select_previous_window()
 
 def select_left_window():
-    return Core()._wm.select_left_window()
+    return Core().select_left_window()
 
 def select_right_window():
-    return Core()._wm.select_right_window()
+    return Core().select_right_window()
 
 def select_top_window():
-    return Core()._wm.select_top_window()
+    return Core().select_top_window()
 
 def select_bottom_window():
-    return Core()._wm.select_bottom_window()
+    return Core().select_bottom_window()
 
 def find_window(predicate, current_window_set=False):
     return Core().find_window(predicate, current_window_set=current_window_set)
@@ -274,17 +269,21 @@ def buffer_visible(buffer_object, split_method=split_window_below, to_window=Fal
 def mini_buffer_default():
     c = Core()
     return (c.last_message,
-            '%s/%s' % (c._wm.window_set_index + 1, c._wm.window_set_count))
+            '%s/%s' % (c._frame._wm.window_set_index + 1, c._frame._wm.window_set_count))
 
 
 def _init_state(core):
     core.def_variable(['tab-stop'], 4)
     core.def_variable(['tree-tab'], 2)
     core.def_variable(['mini-buffer-content'], mini_buffer_default)
-    core.def_variable(['core', 'read-timeout'], READ_TIMEOUT)
 
-@forward(lambda self: self._wm,
-         ['find_window', 'select_window', 'delete_selected_window', 'delete_all_windows',
+@forward(lambda self: self._frame,
+         ['replace_buffer',
+          'new_window_set', 'has_window_set', 'delete_window_set', 'delete_window_set_by_name',
+          'next_window_set', 'previous_window_set',
+          'find_window', 'select_window', 'select_next_window', 'select_previous_window',
+          'select_left_window', 'select_right_window', 'select_top_window', 'select_bottom_window',
+          'delete_selected_window', 'delete_all_windows',
           'split_window_below', 'split_window_right', 'selected_window'])
 class Core(WithKeymap,
            ColorCore,
@@ -323,12 +322,11 @@ class Core(WithKeymap,
         self.io_selector = IOSelector(timeout=None, as_update_func=False)
         self.buffers = [LogBuffer()]
         self._state = {}
-        self._screen = None
         self._exit_handlers = []
         self._current_keychord = []
         self._last_message = ""
         self._running = False
-        self._wm = None
+        self._frame = None
         self._removed_update_funcs = []
         atexit.register(self._at_exit)
         _init_state(self)
@@ -377,14 +375,14 @@ class Core(WithKeymap,
         selected_window.set_buffer(self._find_next_buffer(selected_window.buffer()))
 
     def kill_buffer(self, buffer_object):
-        self._wm.replace_buffer(buffer_object, self._find_next_buffer(buffer_object))
+        self.replace_buffer(buffer_object, self._find_next_buffer(buffer_object))
         self.buffers.remove(buffer_object)
 
         if len(self.buffers) == 0:  # Ensure we always have a buffer available
             switch_buffer(LogBuffer)
 
     def current_buffer(self):
-        return self._wm.selected_window().buffer()
+        return self.selected_window().buffer()
 
     def get_variable(self, path):
         return deep_get(self._state, path, return_none=False)
@@ -417,33 +415,7 @@ class Core(WithKeymap,
             print(log_item)
 
     def _init_curses(self):
-        self._screen = curses.initscr()
-        curses.savetty()
-        curses.raw(1)
-        curses.nonl()
-        curses.noecho()
-        curses.curs_set(0)
-        self._screen.keypad(1)
-        self._screen.timeout(self.get_variable(['core', 'read-timeout']))
-        self.add_exit_handler(self._quit_curses)
-
-        # Init Colors
-        curses.start_color()
-        self._init_colors()
-
-        # Windows
-        self._wm = WindowManager(self._screen)
-
-        # Event Handling and Terminal resizing
-        self.io_selector.register(sys.stdin, self.read)
-        self.io_selector.register_async(TERMINAL_RESIZE_EVENT,
-                                        self._handle_resize)
-        signal.signal(signal.SIGWINCH, self._handle_resize_sig)
-
-    def _quit_curses(self):
-        self._wm.shutdown()
-        curses.resetty()
-        curses.endwin()
+        self._frame = cui.term.curses.Frame(self)
 
     def _init_packages(self):
         for fn in Core.__init_functions__:
@@ -481,20 +453,7 @@ class Core(WithKeymap,
                              % (fn.__name__, traceback.format_exc()))
 
     def _update_ui(self):
-        self._wm.render()
-        curses.doupdate()
-
-    def _handle_resize_sig(self, signum, frame):
-        self.io_selector.post_async_event(TERMINAL_RESIZE_EVENT)
-
-    def _handle_resize(self, _):
-        curses.endwin()
-        self._screen.refresh()
-        self._wm.resize()
-
-        # Clear input queue
-        keyreader.read_keychord(self._screen, 0, False)
-        keyreader.read_keychord(self._screen, 0, False)
+        self._frame.render()
 
     @property
     def last_message(self):
@@ -508,39 +467,33 @@ class Core(WithKeymap,
         self._running = False
 
     def input_delegate(self):
-        return self._wm.selected_window().buffer()
+        return self.selected_window().buffer()
 
-    def read(self, _):
-        current_buffer = self.current_buffer()
-        input_timeout = self.get_variable(['core', 'read-timeout'])
-        kc, is_input = keyreader.read_keychord(self._screen,
-                                               input_timeout,
-                                               current_buffer.takes_input)
-        if kc is not None:
-            if kc == keyreader.EVT_RESIZE:
-                pass
+    def takes_input(self):
+        return self.current_buffer().takes_input
+
+    def dispatch_input(self, keychord, is_input):
+        try:
+            self._current_keychord.append(keychord)
+            is_keychord_handled = self.handle_input(self._current_keychord)
+            if is_keychord_handled:
+                # current_keychord was handled via keymap
+                self._current_keychord = []
+            elif is_input and len(self._current_keychord) == 1:
+                # kc is direct input that was not handled and not beginning of sequence
+                self.current_buffer().insert_chars(keychord)
+                self._current_keychord = []
+            elif is_keychord_handled is None:
+                # current_keychord is no suffix for
+                self.message('Unknown keychord: %s' % ' '.join(self._current_keychord),
+                             show_log=False)
+                self._current_keychord = []
             else:
-                try:
-                    self._current_keychord.append(kc)
-                    is_keychord_handled = self.handle_input(self._current_keychord)
-                    if is_keychord_handled:
-                        # current_keychord was handled via keymap
-                        self._current_keychord = []
-                    elif is_input and len(self._current_keychord) == 1:
-                        # kc is direct input that was not handled and not beginning of sequence
-                        current_buffer.insert_chars(kc)
-                        self._current_keychord = []
-                    elif is_keychord_handled is None:
-                        # current_keychord is no suffix for
-                        self.message('Unknown keychord: %s' % ' '.join(self._current_keychord),
-                                     show_log=False)
-                        self._current_keychord = []
-                    else:
-                        self.message(' '.join(self._current_keychord), show_log=False)
-                except:
-                    # TODO use message, separate minibuffer message and log message
-                    self.logger.log(traceback.format_exc())
-                    self._current_keychord = []
+                self.message(' '.join(self._current_keychord), show_log=False)
+        except:
+            # TODO use message, separate minibuffer message and log message
+            self.logger.log(traceback.format_exc())
+            self._current_keychord = []
 
     def run(self):
         self._init_curses()

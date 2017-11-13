@@ -4,6 +4,12 @@
 
 import curses
 import signal
+import sys
+
+from cui.term import curses_keyreader
+from cui.windows import WindowManager
+from cui import core
+from cui import term
 
 TERMINAL_RESIZE_EVENT = 'SIGWINCH'
 
@@ -44,19 +50,13 @@ def curses_attributes(attributes):
     cattrs = 0
     for attr in attributes:
         cattrs |= ATTR_MAP[attr]
-
-def curses_colpair(core, foreground, background, attributes):
-    foreground = self._core.get_foreground_color(foreground) or \
-                 self._core.get_foreground_color('default')
-    return \
-        curses.color_pair(core.get_index_for_color(foreground, background)) | \
-        curses_attributes(attributes)
+    return cattrs
 
 
-class CursesWindow(object):
-    def __init__(self, core):
-        self._core = core
-        self._handle = curses.newwin(dimensions)
+class Window(object):
+    def __init__(self, frame, dimensions):
+        self._frame = frame
+        self._handle = curses.newwin(*dimensions)
 
     def __del__(self):
         del self._handle
@@ -73,17 +73,19 @@ class CursesWindow(object):
             return
         self._handle.addstr(
             row, col, value,
-            curses_colpair(self._core, foreground, background, attributes))
+            self._frame._curses_colpair(foreground, background, attributes))
 
     def add_char(self, row, col, value, foreground='default', background='default', attributes=[]):
         self._handle.addch(
             row, col, value,
-            curses_colpair(self._core, foreground, background, attributes))
+            self._frame._curses_colpair(foreground, background, attributes))
 
     def insert_string(self, row, col, value, foreground='default', background='default', attributes=[]):
+        if len(value) == 0:
+            return
         self._handle.insstr(
             row, col, value,
-            curses_colpair(self._core, foreground, background, attributes))
+            self._frame._curses_colpair(foreground, background, attributes))
 
     def clear_line(self):
         self._handle.clrtoeol()
@@ -95,9 +97,8 @@ class CursesWindow(object):
         self._handle.noutrefresh()
 
 
-class CursesFrame(object):
-    def __init__(self, core):
-        self._core = core
+class Frame(term.Frame):
+    def initialize(self):
         self._color_index_map = DEFAULT_COLOR_INDEX_MAP.copy()
 
         # Init Curses
@@ -108,7 +109,7 @@ class CursesFrame(object):
         curses.noecho()
         curses.curs_set(0)
         self._screen.keypad(1)
-        self._screen.timeout(self.get_variable(['core', 'read-timeout']))
+        self._screen.timeout(0)
         self._core.add_exit_handler(self.close)
 
         # Init Colors
@@ -121,35 +122,60 @@ class CursesFrame(object):
         signal.signal(signal.SIGWINCH, self._handle_resize_sig)
 
     def close(self):
-        self._core.remove_exit_handler(self.close)
-        self._wm.shutdown()
+        super(Frame, self).close()
         curses.resetty()
         curses.endwin()
 
+    def render(self):
+        super(Frame, self).render()
+        curses.doupdate()
+
     # ------------ Terminal: Input & Resizing --------------
 
-    def read_input(self):
-        pass
+    def _read_input(self, _):
+        keychord, is_input = curses_keyreader.read_keychord(self._screen,
+                                                            receive_input=self._core.takes_input())
+        if keychord is not None and keychord != curses_keyreader.EVT_RESIZE:
+            self._core.dispatch_input(keychord, is_input)
 
-    def handle_resize_sig(self):
-        pass
+    def _handle_resize_sig(self, _, __):
+        self._core.io_selector.post_async_event(TERMINAL_RESIZE_EVENT)
+
+    def _handle_resize(self, _):
+        curses.endwin()
+        self._screen.refresh()
+        self.wm.resize()
+
+        # Clear input queue
+        curses_keyreader.read_keychord(self._screen, receive_input=False)
+        curses_keyreader.read_keychord(self._screen, receive_input=False)
 
     # ------------ Colors: Compute pair indices ------------
 
-    def _color_pair_from_indices(fg_index, bg_index):
+    def _color_pair_from_indices(self, fg_index, bg_index):
         return bg_index | (fg_index * COLOR_BG_OFFSET)
 
-    def _color_pair_from_color(fg_color='white', bg_type='default'):
+    def _color_pair_from_color(self, fg_color='white', bg_type='default'):
         return self._color_pair_from_indices(self._color_index_map[fg_color],
                                              BG_INDEX_MAP[bg_type])
 
-    def _color_pair_from_type(fg_type='default', bg_type='default'):
-        return self._color_pair_from_color(self.get_foreground_color(fg_type),
+    def _color_pair_from_type(self, fg_type='default', bg_type='default'):
+        return self._color_pair_from_color(self._core.get_foreground_color(fg_type),
                                            bg_type)
+
+    def _curses_colpair(self, foreground, background, attributes):
+        foreground = self._core.get_foreground_color(foreground) or \
+                     self._core.get_foreground_color('default')
+        return \
+            curses.color_pair(self._color_pair_from_color(foreground, background)) | \
+            curses_attributes(attributes)
 
     # ------------ Colors: Initialization ------------
 
     def _init_colors(self):
+        # TODO Initialize Color Definitions defined before frame.initialize
+
+        # Initialize Color Pairs
         for bg_entry in self._core.get_backgrounds():
             self._init_background(BG_INDEX_MAP[bg_entry],
                                   self._core.get_background_color(bg_entry))
@@ -159,14 +185,20 @@ class CursesFrame(object):
             self._init_pair(fg_index, bg_index, bg_color)
 
     def _init_pair(self, fg_index, bg_index, bg_color):
-            pair_index = self._color_pair_from_indices(fg_color_index, bg_index)
+            pair_index = self._color_pair_from_indices(fg_index, bg_index)
             if pair_index == 0:  # Cannot change first entry
                 return
             curses.init_pair(pair_index, fg_index, self._color_index_map[bg_color])
 
     # ------------ Colors: Definition -------------
 
-    def def_colorc(self, name, r, g, b):
+    def get_index_for_color(self, fg_name='white', bg_type='default'):
+        return self._color_pair_from_color(fg_name, bg_type)
+
+    def get_index_for_type(self, fg_type='default', bg_type='default'):
+        return self._color_pair_from_type(fg_type, bg_type)
+
+    def set_color(self, name, r, g, b):
         if not curses.can_change_color():
             raise ColorException('Can not set colors.')
         if not len(self._color_index_map.values()) < 32:
@@ -191,10 +223,22 @@ class CursesFrame(object):
                             BG_INDEX_MAP[bg_entry],
                             self._core.get_background_color(bg_entry))
 
+    def set_background(self, bg_type):
+        self._init_background(BG_INDEX_MAP[bg_type],
+                              self._core.get_background_color(bg_type))
+
     # ------------ Windows: Handles -----------------
 
-    def create_window(self, dimensions):
-        return CursesWindow(self._core)
+    def get_dimensions(self):
+        return self._screen.getmaxyx()
 
-    def add_string(self):
-        pass
+    def create_window(self, dimensions):
+        return Window(self, dimensions)
+
+    def update(self):
+        self._screen.noutrefresh()
+
+    def add_char(self, row, col, value, foreground='default', background='default', attributes=[]):
+        self._screen.addch(
+            row, col, value,
+            self._curses_colpair(foreground, background, attributes))

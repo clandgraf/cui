@@ -104,7 +104,7 @@ def translate_keychord(keyname, meta=False):
     return KEYCHORD_MAP.get(mkeys, mkeys)
 
 
-def read_keychord(screen, timeout, receive_input=False):
+def read_keychord(screen, timeout=0, receive_input=False):
     key = screen.getch()
     if key == -1:
         return None, None
