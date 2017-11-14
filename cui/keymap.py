@@ -99,8 +99,17 @@ class WithKeymapMeta(type):
 class WithKeymap(object, metaclass=WithKeymapMeta):
     """Superclass for objects handling keyboard input.
     """
+    @classmethod
+    def set_keychord(cls, keychords, fn):
+        cls.__keymap__[parse_keychord_string(keychords)] = fn
+        return fn
+
     def __init__(self):
         self._keymap = Keymap({}, [self.__class__])
+
+    def set_instance_keychord(self, keychords, fn):
+        self._keymap[parse_keychord_string(keychords)] = fn
+        return fn
 
     def input_delegate(self):
         return None

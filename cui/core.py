@@ -12,6 +12,7 @@ import traceback
 
 import cui.term.curses
 
+from cui.term import Frame
 from cui.buffers import LogBuffer, BufferListBuffer
 from cui.logger import Logger
 from cui.keymap import WithKeymap
@@ -25,6 +26,15 @@ __all__ = ['init_func', 'Core']
 # =================================== API ======================================
 
 # Package Lifecycle
+
+def core_api(_globals, fn_name, keychords=None):
+    wrapped_fn = functools.wraps(getattr(Core, fn_name))(
+        (lambda *args, **kwargs: getattr(Core(), fn_name)(*args, **kwargs)))
+    if keychords:
+        Core.set_keychord(keychords, wrapped_fn)
+    globals()[fn_name] = wrapped_fn
+    return wrapped_fn
+
 
 def has_run(fn):
     """Determine if an init_func or a post_init_func has been successfully executed."""
@@ -206,10 +216,6 @@ def split_window_below():
     """Split this window and create a new one below it."""
     return Core().split_window_below()
 
-def split_window_right():
-    """Split this window and create a new one to the right of it."""
-    return Core().split_window_right()
-
 # Buffers
 
 def current_buffer():
@@ -284,7 +290,8 @@ def _init_state(core):
           'find_window', 'select_window', 'select_next_window', 'select_previous_window',
           'select_left_window', 'select_right_window', 'select_top_window', 'select_bottom_window',
           'delete_selected_window', 'delete_all_windows',
-          'split_window_below', 'split_window_right', 'selected_window'])
+          'split_window_below', 'split_window_right', 'selected_window'],
+         Frame)
 class Core(WithKeymap,
            ColorCore,
            metaclass=combine_meta_classes(Singleton, WithKeymap.__class__)):
@@ -296,8 +303,6 @@ class Core(WithKeymap,
     __keymap__ = {
         "C-x C-c":     bye,
         "C-x 1":       delete_all_windows,
-        "C-x 2":       split_window_below,
-        "C-x 3":       split_window_right,
         "C-x 0":       delete_selected_window,
         "C-x 5 2":     new_window_set,
         "C-x 5 0":     delete_window_set,
@@ -503,3 +508,6 @@ class Core(WithKeymap,
             self.io_selector.select()
 
         self._run_exit_handlers()
+
+
+Core.set_keychord("C-x 2", split_window_below)

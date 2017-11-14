@@ -373,9 +373,11 @@ class WindowSet(object):
         return w2['content']
 
     def split_window_below(self):
+        """Split this window and create a new one below it."""
         return self._split_window('bsplit')
 
     def split_window_right(self):
+        """Split this window and create a new one to the right of it."""
         return self._split_window('rsplit')
 
     def delete_selected_window(self):
@@ -444,7 +446,8 @@ class WindowSet(object):
           'split_window_below',
           'split_window_right',
           'delete_selected_window',
-          'delete_all_windows'])
+          'delete_all_windows'],
+         WindowSet)
 class WindowManager(object):
     def __init__(self, screen):
         self._screen = screen

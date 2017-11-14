@@ -6,9 +6,10 @@ import os
 import sys
 
 from operator import add
-from functools import reduce
+from functools import reduce, wraps
 
-def forward(to, methods):
+
+def forward(to, methods, cls=None):
     """
     Class Decorator that forwards method calls to another object.
 
@@ -21,12 +22,14 @@ def forward(to, methods):
     def _create_forwarder(method):
         def _forward_fn(self, *args, **kwargs):
             return getattr(to(self), method)(*args, **kwargs)
-        return _forward_fn
+        return wraps(getattr(cls, method))(_forward_fn) if cls else _forward_fn
+
     def _forward(cls):
         for method in methods:
             setattr(cls, method, _create_forwarder(method))
         return cls
     return _forward
+
 
 def translate_path(file_map, file_path, reverse=False):
     from_index = 1 if reverse else 0
@@ -39,14 +42,18 @@ def translate_path(file_map, file_path, reverse=False):
             return to_prefix + file_path[len(from_prefix):]
     return file_path
 
+
 def add_to_sys_path(p):
     sys.path.append(p)
+
 
 def local_file(module_file, path):
     return os.path.join(os.path.dirname(module_file), path)
 
+
 def intersperse(lst, sep):
     return reduce(add, [(e, sep) for e in lst])[:-1]
+
 
 def get_base_classes(object_, is_class=True):
     bases_ = []
