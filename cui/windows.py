@@ -50,7 +50,7 @@ class WindowBase(object):
         self._handle.add_char(row, col, value, foreground, background, attributes)
 
     def _add_symbol(self, row, col, value, foreground='default', background='default', attributes=[]):
-        self._handle.add_symbol(row, col, value, foreground='default', background='default', attributes=[])
+        self._handle.add_symbol(row, col, value, foreground, background, attributes)
 
     def _render_line(self, line, soft_tabs, row, col=0,
                      foreground='default', background='default', attributes=[]):

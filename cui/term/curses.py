@@ -84,7 +84,7 @@ class Window(term.Window):
     def add_symbol(self, row, col, value, foreground='default', background='default', attributes=[]):
         self._handle.addch(
             row, col, self._frame.symbols.get(value, ord('?')),
-            self._curses_colpair(foreground, background, attributes))
+            self._frame._curses_colpair(foreground, background, attributes))
 
     def insert_string(self, row, col, value, foreground='default', background='default', attributes=[]):
         if len(value) == 0:
@@ -128,7 +128,7 @@ class Frame(term.Frame):
             symbols.SYM_HLINE:    curses.ACS_HLINE,
             symbols.SYM_LTEE:     curses.ACS_LTEE,
             symbols.SYM_LLCORNER: curses.ACS_LLCORNER,
-            symbols.SYM_RARROW:   ord('>'),
+            symbols.SYM_RARROW:   curses.ACS_RARROW,
             symbols.SYM_DARROW:   ord('v'),
         }
 

@@ -470,16 +470,19 @@ class TreeBuffer(ListBuffer):
             lst.append((symbols.SYM_LLCORNER if item['last'] else symbols.SYM_LTEE) \
                        if first_line else \
                        (' ' if item['last'] else symbols.SYM_VLINE))
-
-        lst.append(('v' if self.is_expanded(item['item']) else '>') \
-                   if self._show_handles and first_line and self.has_children(item['item']) else \
-                   ' ')
+        if self._show_handles:
+            lst.append((symbols.SYM_DARROW if self.is_expanded(item['item']) else symbols.SYM_RARROW) \
+                       if first_line and self.has_children(item['item']) else \
+                       ' ')
+        lst.append(' ')
 
         while item['depth'] > 1:
             item = item['parent']
-            lst = [' ' if item['last'] else symbols.SYM_VLINE, ' ' * (tree_tab - 1)] + lst
+            lst = (['  '] if item['last'] else [symbols.SYM_VLINE, ' ']) + \
+                  ([' '] if self._show_handles else []) + \
+                  lst
         if item['depth'] == 1:
-            lst = [' '] + lst
+            lst = (['  '] if self._show_handles else [' ']) + lst
 
         return lst
 
