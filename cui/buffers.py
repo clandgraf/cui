@@ -20,13 +20,13 @@ must be serializable to a string representation and need to be able to
 buffer to the system.
 """
 
-import curses
 import functools
 import itertools
 
 from cui.util import get_base_classes, deep_get, deep_put, minmax
 from cui.keymap import WithKeymap
 from cui import core
+from cui import symbols
 
 
 def pad_left(width, string):
@@ -355,7 +355,7 @@ class HelpBuffer(ScrollableBuffer):
             self._lines.extend((line.strip() for line in self._buffer_class.__doc__.split('\n')))
             self._lines.append('')
         for k, v in keymap.items():
-            self._lines.append([{'content': '%s' % k, 'attributes': curses.A_BOLD},
+            self._lines.append([{'content': '%s' % k, 'attributes': ['bold']},
                                 ': %s' % (v.__name__)])
             self._lines.extend(('  %s' % line.strip()
                                 for line in (v.__doc__ or '<No documentation>').split('\n')))
@@ -467,9 +467,9 @@ class TreeBuffer(ListBuffer):
         lst = []
 
         if item['depth'] != 0:
-            lst.append((curses.ACS_LLCORNER if item['last'] else curses.ACS_LTEE) \
+            lst.append((symbols.SYM_LLCORNER if item['last'] else symbols.SYM_LTEE) \
                        if first_line else \
-                       (' ' if item['last'] else curses.ACS_VLINE))
+                       (' ' if item['last'] else symbols.SYM_VLINE))
 
         lst.append(('v' if self.is_expanded(item['item']) else '>') \
                    if self._show_handles and first_line and self.has_children(item['item']) else \
@@ -477,7 +477,7 @@ class TreeBuffer(ListBuffer):
 
         while item['depth'] > 1:
             item = item['parent']
-            lst = [' ' if item['last'] else curses.ACS_VLINE, ' ' * (tree_tab - 1)] + lst
+            lst = [' ' if item['last'] else symbols.SYM_VLINE, ' ' * (tree_tab - 1)] + lst
         if item['depth'] == 1:
             lst = [' '] + lst
 

@@ -54,7 +54,7 @@ def curses_attributes(attributes):
     return cattrs
 
 
-class Window(object):
+class Window(term.Window):
     def __init__(self, frame, dimensions):
         self._frame = frame
         self._handle = curses.newwin(*dimensions)
@@ -136,10 +136,14 @@ class Frame(term.Frame):
         self._core.io_selector.register(sys.stdin, self._read_input)
         self._core.io_selector.register_async(TERMINAL_RESIZE_EVENT,
                                               self._handle_resize)
+        self._old_signal_handler = signal.getsignal(signal.SIGWINCH)
         signal.signal(signal.SIGWINCH, self._handle_resize_sig)
 
     def close(self):
         super(Frame, self).close()
+        signal.signal(signal.SIGWINCH, self._old_signal_handler)
+        self._core.io_selector.unregister_async(TERMINAL_RESIZE_EVENT)
+        self._core.io_selector.unregister(sys.stdin)
         curses.resetty()
         curses.endwin()
 

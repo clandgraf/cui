@@ -3,7 +3,6 @@
 # found in the LICENSE file.
 
 import atexit
-import curses
 import functools
 import imp
 import math
@@ -36,9 +35,10 @@ def init_func(fn):
     """
     Decorator that marks a function as an initialization function.
 
-    Functions decorated with init_func will be run after curses has been initialized,
-    and the init-file has been read. The function has_run may be used to determine if
-    a function has been run.
+    Functions decorated with init_func will be run after the first
+    terminal has been initialized, and the init-file has been
+    read. The function has_run may be used to determine if a function
+    has been run.
     """
     fn.__has_run__ = False
     @functools.wraps(fn)
@@ -414,9 +414,6 @@ class Core(WithKeymap,
         for log_item in self.logger.messages:
             print(log_item)
 
-    def _init_curses(self):
-        self._frame = cui.term.curses.Frame(self)
-
     def _init_packages(self):
         for fn in Core.__init_functions__:
             try:
@@ -496,7 +493,7 @@ class Core(WithKeymap,
             self._current_keychord = []
 
     def run(self):
-        self._init_curses()
+        self._frame = cui.term.curses.Frame(self)
         imp.load_source('cui._user_init', './init.py')
         self._init_packages()
         self._post_init_packages()
