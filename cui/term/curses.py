@@ -10,6 +10,7 @@ from cui.term import curses_keyreader
 from cui.windows import WindowManager
 from cui import core
 from cui import term
+from cui import symbols
 
 TERMINAL_RESIZE_EVENT = 'SIGWINCH'
 
@@ -80,6 +81,11 @@ class Window(object):
             row, col, value,
             self._frame._curses_colpair(foreground, background, attributes))
 
+    def add_symbol(self, row, col, value, foreground='default', background='default', attributes=[]):
+        self._handle.addch(
+            row, col, self._frame.symbols.get(value, ord('?')),
+            self._curses_colpair(foreground, background, attributes))
+
     def insert_string(self, row, col, value, foreground='default', background='default', attributes=[]):
         if len(value) == 0:
             return
@@ -116,6 +122,17 @@ class Frame(term.Frame):
         curses.start_color()
         self._init_colors()
 
+        # Init Symbols
+        self.symbols = {
+            symbols.SYM_VLINE:    curses.ACS_VLINE,
+            symbols.SYM_HLINE:    curses.ACS_HLINE,
+            symbols.SYM_LTEE:     curses.ACS_LTEE,
+            symbols.SYM_LLCORNER: curses.ACS_LLCORNER,
+            symbols.SYM_RARROW:   ord('>'),
+            symbols.SYM_DARROW:   ord('v'),
+        }
+
+        # Init Event Handling
         self._core.io_selector.register(sys.stdin, self._read_input)
         self._core.io_selector.register_async(TERMINAL_RESIZE_EVENT,
                                               self._handle_resize)
@@ -144,11 +161,12 @@ class Frame(term.Frame):
     def _handle_resize(self, _):
         curses.endwin()
         self._screen.refresh()
-        self.wm.resize()
 
         # Clear input queue
         curses_keyreader.read_keychord(self._screen, receive_input=False)
         curses_keyreader.read_keychord(self._screen, receive_input=False)
+
+        self._wm.resize()
 
     # ------------ Colors: Compute pair indices ------------
 
@@ -241,4 +259,9 @@ class Frame(term.Frame):
     def add_char(self, row, col, value, foreground='default', background='default', attributes=[]):
         self._screen.addch(
             row, col, value,
+            self._curses_colpair(foreground, background, attributes))
+
+    def add_symbol(self, row, col, value, foreground='default', background='default', attributes=[]):
+        self._screen.addch(
+            row, col, self.symbols.get(value, '?'),
             self._curses_colpair(foreground, background, attributes))

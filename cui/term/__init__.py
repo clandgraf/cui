@@ -18,6 +18,9 @@ class Window(object):
     def add_char(self, row, col, value, foreground='default', background='default', attributes=[]):
         raise NotImplementedError()
 
+    def add_symbol(self, row, col, value, foreground='default', background='default', attributes=[]):
+        raise NotImplementedError()
+
     def insert_string(self, row, col, value, foreground='default', background='default', attributes=[]):
         raise NotImplementedError()
 
@@ -61,13 +64,16 @@ class Frame(object):
         pass
 
     def get_dimensions(self):
-        pass
+        raise NotImplementedError()
 
     def create_window(self, dimensions):
-        pass
+        raise NotImplementedError()
 
     def update(self):
         pass
 
     def add_char(self, row, col, value, foreground='default', background='default', attributes=[]):
-        pass
+        raise NotImplementedError()
+
+    def add_symbol(self, row, col, value, foreground='default', background='default', attributes=[]):
+        raise NotImplementedError()

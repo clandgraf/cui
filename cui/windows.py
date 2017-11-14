@@ -7,6 +7,7 @@ import math
 
 from cui.util import deep_put, forward
 from cui import core
+from cui import symbols
 
 MIN_WINDOW_HEIGHT = 4
 MIN_WINDOW_WIDTH  = 20
@@ -48,6 +49,9 @@ class WindowBase(object):
     def _add_char(self, row, col, value, foreground='default', background='default', attributes=[]):
         self._handle.add_char(row, col, value, foreground, background, attributes)
 
+    def _add_symbol(self, row, col, value, foreground='default', background='default', attributes=[]):
+        self._handle.add_symbol(row, col, value, foreground='default', background='default', attributes=[])
+
     def _render_line(self, line, soft_tabs, row, col=0,
                      foreground='default', background='default', attributes=[]):
         _col = col
@@ -57,6 +61,9 @@ class WindowBase(object):
             _col += len(prepared)
         elif isinstance(line, int):
             self._add_char(row, _col, line, foreground, background, attributes)
+            _col += 1
+        elif isinstance(line, symbols.Symbol):
+            self._add_symbol(row, _col, line, foreground, background, attributes)
             _col += 1
         elif isinstance(line, list):
             for sub_part in line:
@@ -416,8 +423,7 @@ class WindowSet(object):
         col = w['dimensions'][3] + w['content'][0]['dimensions'][1]
         row = w['dimensions'][2]
         for r in range(0, w['dimensions'][0]):
-            # TODO how to map curses.ACS_VLINE
-            self._screen.add_char(row + r, col, '|', 'divider', 'default')
+            self._screen.add_symbol(row + r, col, symbols.SYM_VLINE, 'divider', 'default')
 
     def render(self):
         for w in self._iterate_windows(yield_window=False, yield_rsplit=True):

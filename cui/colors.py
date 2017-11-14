@@ -93,8 +93,8 @@ class ColorCore(object):
                               int(match.group(3), 16))
 
     def def_color(self, name, r, g, b):
-        COLOR_MAP[name] = (r, g, b)
         self._frame.set_color(name, r, g, b)
+        COLOR_MAP[name] = (r, g, b)
 
     def def_foreground(self, fg_type, color_name):
         if color_name is not None and color_name not in COLOR_MAP:
