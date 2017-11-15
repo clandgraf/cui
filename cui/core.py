@@ -43,10 +43,6 @@ def core_api_ns(_globals):
         core_api(_globals, *args, **kwargs)
     yield _core_api
 
-def has_run(fn):
-    """Determine if an init_func or a post_init_func has been successfully executed."""
-    return getattr(fn, '__has_run__')
-
 
 def init_func(fn):
     """
@@ -96,9 +92,6 @@ def post_init_func(fn):
 def remove_update_func(fn):
     Core().remove_update_func(fn)
 
-def is_update_func(fn):
-    return Core().is_update_func(fn)
-
 def update_func(fn):
     Core.__update_functions__.append(fn)
     return fn
@@ -111,25 +104,6 @@ def add_exit_handler(fn):
 
 def remove_exit_handler(fn):
     Core().remove_exit_handler(fn)
-
-# Variables
-
-def def_variable(path, value=None):
-    return Core().def_variable(path, value)
-
-def get_variable(path):
-    return Core().get_variable(path)
-
-def set_variable(path, value=None):
-    return Core().set_variable(path, value)
-
-# Input Waitables
-
-def register_waitable(waitable, handler):
-    return Core().io_selector.register(waitable, handler)
-
-def unregister_waitable(waitable):
-    return Core().io_selector.unregister(waitable)
 
 # Windows
 
@@ -237,7 +211,6 @@ class Core(WithKeymap,
     __update_functions__ = []
 
     __keymap__ = {
-        "C-x 0":       delete_selected_window,
         "S-<tab>":     previous_buffer,
         "<tab>":       next_buffer,
         "C-x C-k":     kill_current_buffer,

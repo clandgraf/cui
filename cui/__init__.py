@@ -6,11 +6,9 @@ from contextlib import contextmanager
 
 from cui import core
 from cui.core import \
-    has_run, init_func, update_func, is_update_func, remove_update_func, post_init_func, \
+    init_func, update_func, remove_update_func, post_init_func, \
     add_exit_handler, remove_exit_handler, \
     running, \
-    def_variable, get_variable, set_variable, \
-    register_waitable, unregister_waitable, \
     delete_window_set_by_name, \
     select_window, selected_window, delete_selected_window, \
     find_window, split_window_below, \
@@ -19,25 +17,6 @@ from cui.core import \
 from cui.api import *
 from cui import buffers
 from cui.buffers import with_current_buffer
-
-
-# Hooks
-
-def def_hook(path):
-    return def_variable(path, [])
-
-def add_hook(path, fn):
-    hooks = get_variable(path)
-    if fn not in hooks:
-        hooks.append(fn)
-
-def remove_hook(path, fn):
-    hooks = get_variable(path)
-    hooks.remove(fn)
-
-def run_hook(path, *args, **kwargs):
-    for hook in get_variable(path):
-        hook(*args, **kwargs)
 
 # Windows
 

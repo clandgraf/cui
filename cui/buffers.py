@@ -20,6 +20,7 @@ must be serializable to a string representation and need to be able to
 buffer to the system.
 """
 
+import cui
 import functools
 import itertools
 
@@ -62,7 +63,7 @@ def with_current_buffer(fn):
 def close_buffer():
     """Kill current buffer and delete selected window."""
     core.kill_current_buffer()
-    core.delete_selected_window()
+    cui.delete_selected_window()
 
 
 @with_current_buffer

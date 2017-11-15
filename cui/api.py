@@ -6,6 +6,11 @@ from cui.core import core_api_ns, Core
 
 with core_api_ns(globals()) as core_api:
     core_api('message')
+    core_api('is_update_func')
+
+    core_api('def_variable')
+    core_api('get_variable')
+    core_api('set_variable')
 
     core_api('bye',                    'C-x C-c')
     core_api('new_window_set',         'C-x 5 2')
@@ -21,6 +26,38 @@ with core_api_ns(globals()) as core_api:
     core_api('select_top_window',      'M-<up>')
     core_api('select_bottom_window',   'M-<down>')
     core_api('delete_all_windows',     'C-x 1')
+    core_api('delete_selected_window', 'C-x 0')
+
+
+def has_run(fn):
+    """Determine if an init_func or a post_init_func has been successfully executed."""
+    return getattr(fn, '__has_run__')
+
+# Input Waitables
+
+def register_waitable(waitable, handler):
+    return Core().io_selector.register(waitable, handler)
+
+def unregister_waitable(waitable):
+    return Core().io_selector.unregister(waitable)
+
+# Hooks
+
+def def_hook(path):
+    return def_variable(path, [])
+
+def add_hook(path, fn):
+    hooks = get_variable(path)
+    if fn not in hooks:
+        hooks.append(fn)
+
+def remove_hook(path, fn):
+    hooks = get_variable(path)
+    hooks.remove(fn)
+
+def run_hook(path, *args, **kwargs):
+    for hook in get_variable(path):
+        hook(*args, **kwargs)
 
 # Colors
 
