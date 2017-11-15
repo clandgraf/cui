@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import cui
 import itertools
 import math
 
@@ -488,7 +489,7 @@ class WindowManager(object):
 
     def _delete_window_set_by_index(self, index):
         if index == 0:
-            core.message('Can not delete window set 1.')
+            cui.message('Can not delete window set 1.')
             return
 
         self._named_window_sets = {k:v for k, v in self._named_window_sets.items()

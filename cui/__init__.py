@@ -7,14 +7,13 @@ from contextlib import contextmanager
 from cui import core
 from cui.core import \
     has_run, init_func, update_func, is_update_func, remove_update_func, post_init_func, \
-    add_exit_handler, remove_exit_handler, bye, \
-    running, message, \
-    def_colors, def_foreground, def_background, \
+    add_exit_handler, remove_exit_handler, \
+    running, \
     def_variable, get_variable, set_variable, \
     register_waitable, unregister_waitable, \
-    new_window_set, has_window_set, delete_window_set, delete_window_set_by_name, next_window_set, \
-    previous_window_set, select_window, selected_window, delete_selected_window, \
-    delete_all_windows, find_window, split_window_below, \
+    delete_window_set_by_name, \
+    select_window, selected_window, delete_selected_window, \
+    find_window, split_window_below, \
     get_buffer, select_buffer, switch_buffer, current_buffer, buffer_window, buffer_visible, \
     kill_current_buffer, next_buffer, previous_buffer
 from cui.api import *

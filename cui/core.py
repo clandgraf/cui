@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 import atexit
+import contextlib
 import functools
 import imp
 import math
@@ -32,9 +33,15 @@ def core_api(_globals, fn_name, keychords=None):
         (lambda *args, **kwargs: getattr(Core(), fn_name)(*args, **kwargs)))
     if keychords:
         Core.set_keychord(keychords, wrapped_fn)
-    globals()[fn_name] = wrapped_fn
+    _globals[fn_name] = wrapped_fn
     return wrapped_fn
 
+
+@contextlib.contextmanager
+def core_api_ns(_globals):
+    def _core_api(*args, **kwargs):
+        core_api(_globals, *args, **kwargs)
+    yield _core_api
 
 def has_run(fn):
     """Determine if an init_func or a post_init_func has been successfully executed."""
@@ -105,41 +112,6 @@ def add_exit_handler(fn):
 def remove_exit_handler(fn):
     Core().remove_exit_handler(fn)
 
-def bye():
-    """Quit this program."""
-    Core().bye()
-
-# Logging
-
-def message(msg, show_log=True, log_message=None):
-    return Core().message(msg, show_log, log_message)
-
-# Colors
-
-def def_colors(name, string):
-    """
-    Define a new color or redefine an existing color.
-
-    The color should be specified as a hex color-string in the format
-    ``#rrggbb``.
-    """
-    try:
-        return Core().def_colors(name, string)
-    except ColorException as e:
-        message('%s' % e)
-
-def def_background(bg_type, color_name):
-    try:
-        return Core().def_background(bg_type, color_name)
-    except ColorException as e:
-        message('%s' % e)
-
-def def_foreground(fg_type, color_name):
-    try:
-        return Core().def_foreground(fg_type, color_name)
-    except ColorException as e:
-        message('%s' % e)
-
 # Variables
 
 def def_variable(path, value=None):
@@ -161,44 +133,11 @@ def unregister_waitable(waitable):
 
 # Windows
 
-def new_window_set(name=None):
-    return Core().new_window_set(name)
-
-def has_window_set(name):
-    return Core().has_window_set(name)
-
-def delete_window_set():
-    Core().delete_window_set()
-
 def delete_window_set_by_name(name):
     Core().delete_window_set_by_name(name)
 
-def next_window_set():
-    Core().next_window_set()
-
-def previous_window_set():
-    Core().previous_window_set()
-
 def select_window(window):
     return Core().select_window(window)
-
-def select_next_window():
-    return Core().select_next_window()
-
-def select_previous_window():
-    return Core().select_previous_window()
-
-def select_left_window():
-    return Core().select_left_window()
-
-def select_right_window():
-    return Core().select_right_window()
-
-def select_top_window():
-    return Core().select_top_window()
-
-def select_bottom_window():
-    return Core().select_bottom_window()
 
 def find_window(predicate, current_window_set=False):
     return Core().find_window(predicate, current_window_set=current_window_set)
@@ -208,9 +147,6 @@ def selected_window():
 
 def delete_selected_window():
     return Core().delete_selected_window()
-
-def delete_all_windows():
-    return Core().delete_all_windows()
 
 def split_window_below():
     """Split this window and create a new one below it."""
@@ -301,20 +237,7 @@ class Core(WithKeymap,
     __update_functions__ = []
 
     __keymap__ = {
-        "C-x C-c":     bye,
-        "C-x 1":       delete_all_windows,
         "C-x 0":       delete_selected_window,
-        "C-x 5 2":     new_window_set,
-        "C-x 5 0":     delete_window_set,
-        "C-x o":       select_next_window,
-        "M-n":         select_next_window,
-        "M-p":         select_previous_window,
-        "M-<left>":    select_left_window,
-        "M-<right>":   select_right_window,
-        "M-<up>":      select_top_window,
-        "M-<down>":    select_bottom_window,
-        "C-M-<left>":  previous_window_set,
-        "C-M-<right>": next_window_set,
         "S-<tab>":     previous_buffer,
         "<tab>":       next_buffer,
         "C-x C-k":     kill_current_buffer,
@@ -337,6 +260,13 @@ class Core(WithKeymap,
         _init_state(self)
 
     def message(self, msg, show_log=True, log_message=None):
+        """
+        Display a message in the echo area and log it.
+
+        :param msg: The message to be displayed
+        :param show_log: Set to False, to avoid appending the message to the log
+        :param log_message: Provide an alternative text for appending to the log
+        """
         self._last_message = msg
         if log_message:
             self.logger.log(log_message)
