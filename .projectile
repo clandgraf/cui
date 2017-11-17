@@ -1,0 +1,4 @@
+-*.pyc
++/cui
++/src/cui-pydevd/cui_pydevd
++/src/cui-emacs/cui_emacs
