@@ -56,6 +56,14 @@ class Session(object):
     def handle(self):
         pass
 
+    def send_all(self, msg):
+        totalsent = 0
+        while totalsent < len(msg):
+            sent = self.socket.send(msg[totalsent:])
+            if sent == 0:
+                raise ConnectionTerminated('sent 0 bytes')
+            totalsent += sent
+
     def close(self):
         self.socket.close()
 

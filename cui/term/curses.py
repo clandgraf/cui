@@ -140,7 +140,6 @@ class Frame(term.Frame):
         signal.signal(signal.SIGWINCH, self._handle_resize_sig)
 
     def close(self):
-        super(Frame, self).close()
         signal.signal(signal.SIGWINCH, self._old_signal_handler)
         self._core.io_selector.unregister_async(TERMINAL_RESIZE_EVENT)
         self._core.io_selector.unregister(sys.stdin)

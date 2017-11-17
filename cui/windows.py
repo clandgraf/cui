@@ -20,9 +20,6 @@ class WindowBase(object):
         self._init_dimensions(dimensions)
         self._handle = screen.create_window(self._internal_dimensions)
 
-    def __del__(self):
-        del self._handle
-
     def _init_dimensions(self, dimensions):
         self._internal_dimensions = dimensions
         self.dimensions = self.get_content_dimensions(dimensions)
@@ -456,10 +453,6 @@ class WindowManager(object):
         self._named_window_sets = {}
         self._active_window_set = 0
         self._mini_buffer_win = MiniBuffer(self._screen)
-
-    def shutdown(self):
-        self._mini_buffer_win = None
-        # TODO close all window sets
 
     @property
     def window_set_index(self):

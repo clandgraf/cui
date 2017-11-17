@@ -10,6 +10,8 @@ import cui
 import os
 import select
 
+# TODO remove as_update_func
+
 class IOSelector(object):
     """
     The IOSelector class provides an abstraction on the select syscall.

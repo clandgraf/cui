@@ -20,9 +20,11 @@ must be serializable to a string representation and need to be able to
 buffer to the system.
 """
 
-import cui
+import contextlib
 import functools
 import itertools
+
+import cui
 
 from cui.util import get_base_classes, deep_get, deep_put, minmax
 from cui.keymap import WithKeymap
@@ -62,14 +64,26 @@ def with_current_buffer(fn):
 
 def close_buffer():
     """Kill current buffer and delete selected window."""
-    core.kill_current_buffer()
+    cui.kill_current_buffer()
     cui.delete_selected_window()
 
 
 @with_current_buffer
 def display_help(buffer_object):
     """Display a help buffer"""
-    return core.buffer_visible(HelpBuffer, buffer_object.__class__, to_window=True)
+    return cui.buffer_visible(HelpBuffer, buffer_object.__class__, to_window=True)
+
+
+def buffer_keys(keychord, name=None):
+    def _buffer_keys(class_):
+        def switch_to_buffer():
+            cui.switch_buffer(class_)
+        if name:
+            switch_to_buffer.__name__ = name
+        switch_to_buffer.__doc__ = 'Switch to buffer %s' % class_.__name__
+        cui.set_global_key(keychord, switch_to_buffer)
+        return class_
+    return _buffer_keys
 
 
 class Buffer(WithKeymap):
@@ -95,7 +109,7 @@ class Buffer(WithKeymap):
         return self.name(*self.args)
 
     def window(self):
-        selected_window = core.Core().selected_window()
+        selected_window = cui.selected_window()
         return selected_window if self == selected_window.buffer() else None
 
     def def_variable(self, path, value=None):
@@ -367,6 +381,8 @@ class HelpBuffer(ScrollableBuffer):
     def get_lines(self, window):
         yield from iter(self._lines[window._state['first-row']:])
 
+
+@buffer_keys('C-x C-b', 'list_buffers')
 class BufferListBuffer(ListBuffer):
     @classmethod
     def name(cls, *args):
@@ -559,7 +575,7 @@ class ConsoleBuffer(ScrollableBuffer):
                 self._buffer]
 
     def get_lines(self, window):
-        if window == core.selected_window() and self._to_bottom:
+        if window == cui.selected_window() and self._to_bottom:
             first_row = max(self.line_count() - window.dimensions[0], 0)
             self.set_variable(['win/buf', 'first-row'], first_row)
             self._to_bottom = False

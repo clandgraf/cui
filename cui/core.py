@@ -11,10 +11,10 @@ import signal
 import sys
 import traceback
 
+import cui
 import cui.term.curses
 
 from cui.term import Frame
-from cui.buffers import LogBuffer, BufferListBuffer
 from cui.logger import Logger
 from cui.keymap import WithKeymap
 from cui.util import deep_get, deep_put, forward
@@ -89,98 +89,11 @@ def post_init_func(fn):
     return wrapper_fn
 
 
-def remove_update_func(fn):
-    Core().remove_update_func(fn)
-
 def update_func(fn):
     Core.__update_functions__.append(fn)
     return fn
 
-def running():
-    return Core().is_running()
-
-def add_exit_handler(fn):
-    Core().add_exit_handler(fn)
-
-def remove_exit_handler(fn):
-    Core().remove_exit_handler(fn)
-
-# Windows
-
-def delete_window_set_by_name(name):
-    Core().delete_window_set_by_name(name)
-
-def select_window(window):
-    return Core().select_window(window)
-
-def find_window(predicate, current_window_set=False):
-    return Core().find_window(predicate, current_window_set=current_window_set)
-
-def selected_window():
-    return Core().selected_window()
-
-def delete_selected_window():
-    return Core().delete_selected_window()
-
-def split_window_below():
-    """Split this window and create a new one below it."""
-    return Core().split_window_below()
-
-# Buffers
-
-def current_buffer():
-    """Return the buffer in the selected window."""
-    return Core().current_buffer()
-
-def previous_buffer():
-    """Switch to the previous buffer in the selected window."""
-    return Core().switch_to_previous_buffer()
-
-def next_buffer():
-    """Switch to the next buffer in the selected window."""
-    return Core().switch_to_next_buffer()
-
-def select_buffer(buffer_object):
-    """Make buffer_object the buffer in the current window"""
-    return Core().select_buffer(buffer_object)
-
-def get_buffer(buffer_class, *args):
-    return Core().get_buffer(buffer_class, *args)
-
-def create_buffer(buffer_class, *args):
-    return Core().create_buffer(buffer_class, *args)
-
-def kill_current_buffer():
-    """Kill the current buffer."""
-    c = Core()
-    c.kill_buffer(c.current_buffer())
-
-def with_created_buffer(fn):
-    def _fn(buffer_class, *args, **kwargs):
-        return fn(create_buffer(buffer_class, *args), **kwargs)
-    return _fn
-
-@with_created_buffer
-def switch_buffer(buffer_object):
-    return select_buffer(buffer_object)
-
-def buffer_window(buffer_object, current_window_set=False):
-    return find_window(lambda w: w.buffer() == buffer_object, current_window_set=current_window_set)
-
-@with_created_buffer
-def buffer_visible(buffer_object, split_method=split_window_below, to_window=False):
-    win = buffer_window(buffer_object, current_window_set=True)
-    if not win:
-        win = split_method() if split_method else selected_window()
-        if win:
-            win.set_buffer(buffer_object)
-    if win and to_window:
-        select_window(win)
-
-    return (win, buffer_object)
-
 # ==============================================================================
-
 
 def mini_buffer_default():
     c = Core()
@@ -192,6 +105,9 @@ def _init_state(core):
     core.def_variable(['tab-stop'], 4)
     core.def_variable(['tree-tab'], 2)
     core.def_variable(['mini-buffer-content'], mini_buffer_default)
+
+    from cui.buffers import LogBuffer
+    core.def_variable(['default-buffer-class'], LogBuffer)
 
 @forward(lambda self: self._frame,
          ['replace_buffer',
@@ -210,19 +126,14 @@ class Core(WithKeymap,
     __post_init_functions__ = []
     __update_functions__ = []
 
-    __keymap__ = {
-        "S-<tab>":     previous_buffer,
-        "<tab>":       next_buffer,
-        "C-x C-k":     kill_current_buffer,
-        "C-x C-b":     lambda: switch_buffer(BufferListBuffer),
-    }
-
     def __init__(self):
         super(Core, self).__init__()
+        self._state = {}
         self.logger = Logger()
         self.io_selector = IOSelector(timeout=None, as_update_func=False)
-        self.buffers = [LogBuffer()]
-        self._state = {}
+
+        _init_state(self)
+        self.buffers = []
         self._exit_handlers = []
         self._current_keychord = []
         self._last_message = ""
@@ -230,7 +141,6 @@ class Core(WithKeymap,
         self._frame = None
         self._removed_update_funcs = []
         atexit.register(self._at_exit)
-        _init_state(self)
 
     def message(self, msg, show_log=True, log_message=None):
         """
@@ -274,22 +184,25 @@ class Core(WithKeymap,
     def _find_previous_buffer(self, buffer_object):
         return self.buffers[(self.buffers.index(buffer_object) - 1)]
 
-    def switch_to_previous_buffer(self, buffer_object=None):
+    def previous_buffer(self):
+        """Switch to the previous buffer in the selected window."""
         selected_window = self.selected_window()
         selected_window.set_buffer(self._find_previous_buffer(selected_window.buffer()))
 
-    def switch_to_next_buffer(self, buffer_object=None):
+    def next_buffer(self):
+        """Switch to the next buffer in the selected window."""
         selected_window = self.selected_window()
         selected_window.set_buffer(self._find_next_buffer(selected_window.buffer()))
 
-    def kill_buffer(self, buffer_object):
+    def kill_buffer_object(self, buffer_object):
         self.replace_buffer(buffer_object, self._find_next_buffer(buffer_object))
         self.buffers.remove(buffer_object)
 
         if len(self.buffers) == 0:  # Ensure we always have a buffer available
-            switch_buffer(LogBuffer)
+            cui.switch_buffer(self.get_variable('default-buffer-class'))
 
     def current_buffer(self):
+        """Return the buffer in the selected window."""
         return self.selected_window().buffer()
 
     def get_variable(self, path):
@@ -307,7 +220,7 @@ class Core(WithKeymap,
     def remove_exit_handler(self, handler_fn):
         self._exit_handlers.remove(handler_fn)
 
-    def is_running(self):
+    def running(self):
         return self._running
 
     def _run_exit_handlers(self):
@@ -401,6 +314,7 @@ class Core(WithKeymap,
             self._current_keychord = []
 
     def run(self):
+        self.buffers.append(self.get_variable(['default-buffer-class'])())
         self._frame = cui.term.curses.Frame(self)
         imp.load_source('cui._user_init', './init.py')
         self._init_packages()
@@ -411,6 +325,3 @@ class Core(WithKeymap,
             self.io_selector.select()
 
         self._run_exit_handlers()
-
-
-Core.set_keychord("C-x 2", split_window_below)

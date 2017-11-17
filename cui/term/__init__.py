@@ -53,7 +53,7 @@ class Frame(object):
         pass
 
     def close(self):
-        self._wm.shutdown()
+        pass
 
     def render(self):
         self._wm.render()
