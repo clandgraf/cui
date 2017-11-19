@@ -93,7 +93,8 @@ class ColorCore(object):
                               int(match.group(3), 16))
 
     def def_color(self, name, r, g, b):
-        self._frame.set_color(name, r, g, b)
+        if self._frame:
+            self._frame.set_color(name, r, g, b)
         COLOR_MAP[name] = (r, g, b)
 
     def def_foreground(self, fg_type, color_name):
@@ -109,10 +110,14 @@ class ColorCore(object):
             raise ColorException('No color named %s' % color_name)
 
         BGCOL_MAP[bg_type] = color_name
-        self._frame.set_background(bg_type)
+        if self._frame:
+            self._frame.set_background(bg_type)
 
     def get_colors(self):
         return COLOR_MAP.keys()
+
+    def get_color(self, name):
+        return COLOR_MAP.get(name)
 
     def get_foreground_color(self, fg_type):
         return FGCOL_MAP[fg_type]

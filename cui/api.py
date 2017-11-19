@@ -7,6 +7,7 @@ import contextlib
 from cui.core import \
     core_api_ns, Core, \
     init_func, update_func, post_init_func
+from cui.colors import ColorException
 
 with core_api_ns(globals()) as core_api:
     core_api('message')

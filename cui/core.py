@@ -5,7 +5,6 @@
 import atexit
 import contextlib
 import functools
-import imp
 import math
 import signal
 import sys
@@ -316,7 +315,6 @@ class Core(WithKeymap,
     def run(self):
         self.buffers.append(self.get_variable(['default-buffer-class'])())
         self._frame = cui.term.curses.Frame(self)
-        imp.load_source('cui._user_init', './init.py')
         self._init_packages()
         self._post_init_packages()
         self._running = True

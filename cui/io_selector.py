@@ -60,11 +60,14 @@ class IOSelector(object):
         self._handlers[id(waitable)] = handler
 
     def unregister(self, waitable):
-        self._waitables.remove(waitable)
-        del self._handlers[id(waitable)]
-        if not self._waitables and cui.is_update_func(self.select):
-            cui.message('Stopping socket selector')
-            cui.remove_update_func(self.select)
+        try:
+            self._waitables.remove(waitable)
+            del self._handlers[id(waitable)]
+            if not self._waitables and cui.is_update_func(self.select):
+                cui.message('Stopping socket selector')
+                cui.remove_update_func(self.select)
+        except ValueError:
+            pass
 
     def select(self):
         if not self._waitables:
@@ -81,7 +84,10 @@ class IOSelector(object):
         self._async_handlers[name] = handler
 
     def unregister_async(self, name):
-        del self._async_handlers[name]
+        try:
+            del self._async_handlers[name]
+        except KeyError:
+            pass
 
     def post_async_event(self, name):
         self._fd_write.write('%s\n' % name)

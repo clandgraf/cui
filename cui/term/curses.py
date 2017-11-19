@@ -106,6 +106,7 @@ class Window(term.Window):
 class Frame(term.Frame):
     def initialize(self):
         self._color_index_map = DEFAULT_COLOR_INDEX_MAP.copy()
+        self._old_signal_handler = None
 
         # Init Curses
         self._screen = curses.initscr()
@@ -129,7 +130,7 @@ class Frame(term.Frame):
             symbols.SYM_LTEE:     curses.ACS_LTEE,
             symbols.SYM_LLCORNER: curses.ACS_LLCORNER,
             symbols.SYM_RARROW:   curses.ACS_RARROW,
-            symbols.SYM_DARROW:   ord('v'),
+            symbols.SYM_DARROW:   curses.ACS_DARROW, #ord('v'),
         }
 
         # Init Event Handling
@@ -140,7 +141,8 @@ class Frame(term.Frame):
         signal.signal(signal.SIGWINCH, self._handle_resize_sig)
 
     def close(self):
-        signal.signal(signal.SIGWINCH, self._old_signal_handler)
+        if self._old_signal_handler:
+            signal.signal(signal.SIGWINCH, self._old_signal_handler)
         self._core.io_selector.unregister_async(TERMINAL_RESIZE_EVENT)
         self._core.io_selector.unregister(sys.stdin)
         curses.resetty()
@@ -194,7 +196,11 @@ class Frame(term.Frame):
     # ------------ Colors: Initialization ------------
 
     def _init_colors(self):
-        # TODO Initialize Color Definitions defined before frame.initialize
+        # Initialize Color Definitions defined before frame.initialize
+        for name in self._core.get_colors():
+            color_def = self._core.get_color(name)
+            if color_def:
+                self.set_color(name, *color_def)
 
         # Initialize Color Pairs
         for bg_entry in self._core.get_backgrounds():
