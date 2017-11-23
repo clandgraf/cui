@@ -4,7 +4,12 @@
 
 from cui.api import *
 from cui import buffers
+from cui import buffers_std
 from cui.buffers import with_current_buffer
+
+
+set_local_key(buffers.Buffer, 'C-_', buffers_std.display_help)
+
 
 __all__ = [
     'has_run',

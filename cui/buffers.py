@@ -68,12 +68,6 @@ def close_buffer():
     cui.delete_selected_window()
 
 
-@with_current_buffer
-def display_help(buffer_object):
-    """Display a help buffer"""
-    return cui.buffer_visible(HelpBuffer, buffer_object.__class__, to_window=True)
-
-
 def buffer_keys(keychord, name=None):
     def _buffer_keys(class_):
         def switch_to_buffer():
@@ -91,10 +85,6 @@ class Buffer(WithKeymap):
     This is the base class for all buffers. Usually you want to
     to use a more specialized class.
     """
-
-    __keymap__ = {
-        'C-_': display_help
-    }
 
     @classmethod
     def name(cls, *args):
@@ -335,69 +325,6 @@ class ListBuffer(ScrollableBuffer):
         return [item]
 
 
-class LogBuffer(ListBuffer):
-    @classmethod
-    def name(cls):
-        return "Logger"
-
-    def items(self):
-        return core.Core().logger.messages
-
-    def render_item(self, window, item, index):
-        return item.split('\n', self._item_height)[:self._item_height]
-
-
-class HelpBuffer(ScrollableBuffer):
-    __keymap__ = {
-        'q': close_buffer,
-        '<up>': scroll_up,
-        '<down>': scroll_down
-    }
-
-    @classmethod
-    def name(cls, buffer_class):
-        return "Help: %s" % buffer_class.__name__
-
-    def __init__(self, buffer_class):
-        super(HelpBuffer, self).__init__(buffer_class)
-        self._buffer_class = buffer_class
-        self._render_lines()
-
-    def _render_lines(self):
-        keymap = self._buffer_class.__keymap__.flattened()
-        self._lines = []
-        if self._buffer_class.__doc__:
-            self._lines.extend((line.strip() for line in self._buffer_class.__doc__.split('\n')))
-            self._lines.append('')
-        for k, v in keymap.items():
-            self._lines.append([{'content': '%s' % k, 'attributes': ['bold']},
-                                ': %s' % (v.__name__)])
-            self._lines.extend(('  %s' % line.strip()
-                                for line in (v.__doc__ or '<No documentation>').split('\n')))
-
-    def line_count(self):
-        return len(self._lines)
-
-    def get_lines(self, window):
-        yield from iter(self._lines[window._state['first-row']:])
-
-
-@buffer_keys('C-x C-b', 'list_buffers')
-class BufferListBuffer(ListBuffer):
-    @classmethod
-    def name(cls, *args):
-        return "Buffers"
-
-    def items(self):
-        return core.Core().buffers
-
-    def on_item_selected(self):
-        core.Core().select_buffer(self.selected_item())
-
-    def render_item(self, window, item, index):
-        return [item.buffer_name()]
-
-
 @with_current_buffer
 def expand_node(b):
     item = b.selected_item()
@@ -512,7 +439,7 @@ def next_char(buf):
     return buf.set_cursor(buf.cursor + 1)
 
 @with_current_buffer
-def prev_char(buf):
+def previous_char(buf):
     return buf.set_cursor(buf.cursor - 1)
 
 @with_current_buffer
@@ -520,22 +447,37 @@ def delete_next_char(buf):
     buf.delete_chars(1)
 
 @with_current_buffer
-def delete_prev_char(buf):
-    if prev_char():
+def delete_previous_char(buf):
+    if previous_char():
         buf.delete_chars(1)
+
+@with_current_buffer
+def previous_history_item(buf):
+    buf.activate_history_item(
+        (buf.history_length - 1) if buf.history_index == -1 else max(buf.history_index - 1, 0))
+
+@with_current_buffer
+def next_history_item(buf):
+    if buf.history_index != -1:
+        buf.activate_history_item(buf.history_index + 1)
 
 class ConsoleBuffer(ScrollableBuffer):
     __keymap__ = {
         '<enter>': with_current_buffer(lambda buf: buf.send_current_buffer()),
-        'C-?':     delete_prev_char,
+        'C-?':     delete_previous_char,
         '<del>':   delete_next_char,
-        '<left>':  prev_char,
-        '<right>': next_char
+        '<left>':  previous_char,
+        '<right>': next_char,
+        '<up>':    previous_history_item,
+        '<down>':  next_history_item,
     }
 
     def __init__(self, *args):
         super(ConsoleBuffer, self).__init__(*args)
         self._chistory = []
+        self._bhistory = []
+        self._bhistory_index = -1
+        self._saved_buffer = ''
         self._buffer = ''
         self._cursor = 0
         self.prompt = '> '
@@ -554,6 +496,29 @@ class ConsoleBuffer(ScrollableBuffer):
             self._buffer = self._buffer[:self._cursor] + self._buffer[self._cursor + length:]
 
     @property
+    def history_index(self):
+        return self._bhistory_index
+
+    @property
+    def history_length(self):
+        return len(self._bhistory)
+
+    def activate_history_item(self, index):
+        if not self._bhistory:
+            return
+
+        if self._bhistory_index != -1 and (index == -1 or index == len(self._bhistory)):
+            self._buffer = self._saved_buffer
+            self._bhistory_index = -1
+        else:
+            if self._bhistory_index == -1:
+                self._saved_buffer = self._buffer
+            self._bhistory_index = index % len(self._bhistory)
+            self._buffer = self._bhistory[self._bhistory_index]
+
+        self.set_cursor(min(self._cursor, len(self._buffer)))
+
+    @property
     def cursor(self):
         return self._cursor
 
@@ -565,7 +530,7 @@ class ConsoleBuffer(ScrollableBuffer):
 
     def buffer_line(self, cursor):
         bstring = self._buffer + ' '
-        return [self.prompt,
+        return [str(self._bhistory_index) if self._bhistory_index != -1 else '', self.prompt,
                 [bstring[:self._cursor],
                  {'content': bstring[self._cursor],
                   'foreground': 'special',
@@ -588,6 +553,8 @@ class ConsoleBuffer(ScrollableBuffer):
 
     def send_current_buffer(self):
         self._chistory.append(self.buffer_line(cursor=False))
+        self._bhistory.append(self._buffer)
+        self._bhistory_index = -1
         b = self._buffer
         self._buffer = ''
         self._cursor = 0
@@ -600,15 +567,3 @@ class ConsoleBuffer(ScrollableBuffer):
 
     def on_send_current_buffer(self, b):
         pass
-
-
-class TestConsoleBuffer(ConsoleBuffer):
-    @classmethod
-    def name(cls):
-        return "TestConsole"
-
-    def __init__(self, *args):
-        super(TestConsoleBuffer, self).__init__()
-
-    def on_send_current_buffer(self, b):
-        core.Core().message(b)

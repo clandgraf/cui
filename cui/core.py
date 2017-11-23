@@ -105,7 +105,7 @@ def _init_state(core):
     core.def_variable(['tree-tab'], 2)
     core.def_variable(['mini-buffer-content'], mini_buffer_default)
 
-    from cui.buffers import LogBuffer
+    from cui.buffers_std import LogBuffer
     core.def_variable(['default-buffer-class'], LogBuffer)
 
 @forward(lambda self: self._frame,
@@ -308,8 +308,9 @@ class Core(WithKeymap,
             else:
                 self.message(' '.join(self._current_keychord), show_log=False)
         except:
-            # TODO use message, separate minibuffer message and log message
-            self.logger.log(traceback.format_exc())
+            exc_type, exc_value, exc_tb = sys.exc_info()
+            cui.message(traceback.format_exception_only(exc_type, exc_value)[0],
+                        log_message=traceback.format_exc())
             self._current_keychord = []
 
     def run(self):

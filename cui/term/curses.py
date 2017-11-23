@@ -55,9 +55,16 @@ def curses_attributes(attributes):
 
 
 class Window(term.Window):
-    def __init__(self, frame, dimensions):
+    def __init__(self, frame, dimensions, foreground='default', background='default'):
         self._frame = frame
         self._handle = curses.newwin(*dimensions)
+        self._foreground = foreground
+        self._background = background
+        self._init_background()
+
+    def _init_background(self):
+        self._handle.bkgdset(self._frame._curses_colpair(self._foreground,
+                                                         self._background, []))
 
     def __del__(self):
         del self._handle
@@ -251,6 +258,7 @@ class Frame(term.Frame):
                             self._core.get_background_color(bg_entry))
 
     def set_background(self, bg_type):
+        # TODO update window background
         self._init_background(BG_INDEX_MAP[bg_type],
                               self._core.get_background_color(bg_type))
 

@@ -3,9 +3,12 @@
 TODO
 ====
 
- --> How to fix terminal resize => catch sigwinch -> write to self-pipe -> invoke core-handler
+ --> Update window backgrounds when fg-color changes
+     --> Keep created curses-windows in frame.
+     --> On close remove those windows
+     --> when color changes update all windows in frame
 
- --> Minibuffer refactoring
+ --> Interactive Commands with input from minibuffer
 
  --> @update_func currently not used
      -> either remove or implement via threading

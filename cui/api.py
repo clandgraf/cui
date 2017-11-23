@@ -34,8 +34,8 @@ with core_api_ns(globals()) as core_api:
     core_api('has_window_set')
     core_api('delete_window_set',      'C-x 5 0')
     core_api('delete_window_set_by_name')
-    core_api('next_window_set',        'C-M-<right>')
-    core_api('previous_window_set',    'C-M-<left>')
+    core_api('next_window_set',        'C-M-n')
+    core_api('previous_window_set',    'C-M-p')
     core_api('split_window_below',     'C-x 2')
     core_api('split_window_right',     'C-x 3')
     core_api('select_window')
@@ -53,6 +53,10 @@ with core_api_ns(globals()) as core_api:
 
 def set_global_key(keychord, fn):
     Core.set_keychord(keychord, fn)
+
+
+def set_local_key(buffer_class, keychord, fn):
+    buffer_class.set_keychord(keychord, fn)
 
 
 def global_key(keychord):

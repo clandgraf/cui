@@ -98,6 +98,7 @@ class ColorCore(object):
         COLOR_MAP[name] = (r, g, b)
 
     def def_foreground(self, fg_type, color_name):
+        # TODO curses frame needs update
         if color_name is not None and color_name not in COLOR_MAP:
             raise ColorException('No color named %s' % color_name)
 

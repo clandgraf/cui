@@ -466,6 +466,14 @@ class WindowManager(object):
         return self._window_sets[self._active_window_set]
 
     def new_window_set(self, name=None):
+        """
+        Creates a new window set, optionally associating it with ``name``.
+
+        If name is provided, the window set may be referred to by its name,
+        when deleting or selecting it.
+
+        :param name: The name by which the window set may be referred to
+        """
         if name and name in self._named_window_sets:
             return self._window_sets[self._named_window_sets[name]]
 
@@ -478,6 +486,11 @@ class WindowManager(object):
         return ws
 
     def has_window_set(self, name):
+        """
+        Returns true if a window set associated with ``name`` exists.
+
+        :param name: The name with which the window set is to be associated.
+        """
         return name in self._named_window_sets
 
     def _delete_window_set_by_index(self, index):
@@ -492,9 +505,16 @@ class WindowManager(object):
             self._active_window_set -= 1
 
     def delete_window_set(self):
+        """
+        Deletes the currently selected window set.
+        The previous window set will become selected.
+        """
         self._delete_window_set_by_index(self._active_window_set)
 
     def delete_window_set_by_name(self, name):
+        """
+        If a window set associated with ``name`` exists, it will be deleted.
+        """
         index = self._named_window_sets.get(name)
         if index:
             self._delete_window_set_by_index(index)
