@@ -173,6 +173,7 @@ class Frame(term.Frame):
     def _handle_resize(self, _):
         curses.endwin()
         self._screen.refresh()
+        self._screen.clear()
 
         # Clear input queue
         curses_keyreader.read_keychord(self._screen, receive_input=False)

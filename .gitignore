@@ -2,6 +2,7 @@
 bin/
 include/
 lib/
+lib64
 pip-selfcheck.json
 *.egg-info
 requirements.txt
