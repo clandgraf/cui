@@ -11,6 +11,7 @@ from cui.windows import WindowManager
 from cui import core
 from cui import term
 from cui import symbols
+from cui import colors
 
 TERMINAL_RESIZE_EVENT = 'SIGWINCH'
 
@@ -55,16 +56,14 @@ def curses_attributes(attributes):
 
 
 class Window(term.Window):
-    def __init__(self, frame, dimensions, foreground='default', background='default'):
+    def __init__(self, frame, dimensions, background='default'):
         self._frame = frame
         self._handle = curses.newwin(*dimensions)
-        self._foreground = foreground
         self._background = background
         self._init_background()
 
     def _init_background(self):
-        self._handle.bkgdset(self._frame._curses_colpair(self._foreground,
-                                                         self._background, []))
+        self._handle.bkgdset(self._frame._curses_colpair('default', self._background, []))
 
     def __del__(self):
         del self._handle
@@ -190,15 +189,14 @@ class Frame(term.Frame):
         return self._color_pair_from_indices(self._color_index_map[fg_color],
                                              BG_INDEX_MAP[bg_type])
 
-    def _color_pair_from_type(self, fg_type='default', bg_type='default'):
-        return self._color_pair_from_color(self._core.get_foreground_color(fg_type),
-                                           bg_type)
-
     def _curses_colpair(self, foreground, background, attributes):
-        foreground = self._core.get_foreground_color(foreground) or \
-                     self._core.get_foreground_color('default')
+        fg = self._core.get_foreground_color(foreground) or \
+             self._core.get_foreground_color('default')
+        if not fg in self._color_index_map:
+            fg = self._core.get_foreground_color(foreground, compat=True) or \
+                 self._core.get_foreground_color('default', compat=True)
         return \
-            curses.color_pair(self._color_pair_from_color(foreground, background)) | \
+            curses.color_pair(self._color_pair_from_color(fg, background)) | \
             curses_attributes(attributes)
 
     # ------------ Colors: Initialization ------------
@@ -208,38 +206,39 @@ class Frame(term.Frame):
         for name in self._core.get_colors():
             color_def = self._core.get_color(name)
             if color_def:
-                self.set_color(name, *color_def)
+                try:
+                    self.set_color(name, *color_def)
+                except colors.ColorException:
+                    pass
 
         # Initialize Color Pairs
         for bg_entry in self._core.get_backgrounds():
             self._init_background(BG_INDEX_MAP[bg_entry],
-                                  self._core.get_background_color(bg_entry))
+                                  self._core.get_background_color(bg_entry),
+                                  self._core.get_background_color(bg_entry, compat=True))
 
-    def _init_background(self, bg_index, bg_color):
+    def _init_background(self, bg_index, bg_color, bg_color_fallback):
         for fg_index in set(self._color_index_map.values()):
-            self._init_pair(fg_index, bg_index, bg_color)
+            self._init_pair(fg_index, bg_index, bg_color, bg_color_fallback)
 
-    def _init_pair(self, fg_index, bg_index, bg_color):
+    def _init_pair(self, fg_index, bg_index, bg_color, bg_color_fallback):
             pair_index = self._color_pair_from_indices(fg_index, bg_index)
             if pair_index == 0:  # Cannot change first entry
                 return
-            curses.init_pair(pair_index, fg_index, self._color_index_map[bg_color])
+            bg_color_index_compat = self._color_index_map.get(bg_color_fallback)
+            bg_color_index = self._color_index_map.get(bg_color, bg_color_index_compat)
+            curses.init_pair(pair_index, fg_index, bg_color_index)
 
     # ------------ Colors: Definition -------------
 
-    def get_index_for_color(self, fg_name='white', bg_type='default'):
-        return self._color_pair_from_color(fg_name, bg_type)
-
-    def get_index_for_type(self, fg_type='default', bg_type='default'):
-        return self._color_pair_from_type(fg_type, bg_type)
-
     def set_color(self, name, r, g, b):
         if not curses.can_change_color():
-            raise ColorException('Can not set colors.')
-        if not len(self._color_index_map.values()) < 32:
-            raise ColorException('Maximum number of colors (32) is reached.')
+            raise colors.ColorException('Can not set colors.')
 
         color_name_exists = name in self._core.get_colors()
+
+        if not color_name_exists and not len(self._color_index_map.values()) < 32:
+            raise colors.ColorException('Maximum number of colors (32) is reached.')
 
         cr = int(r * 1000.0 // 255.0)
         cg = int(g * 1000.0 // 255.0)
@@ -256,12 +255,13 @@ class Frame(term.Frame):
         for bg_entry in self._core.get_backgrounds():
             self._init_pair(color_index,
                             BG_INDEX_MAP[bg_entry],
-                            self._core.get_background_color(bg_entry))
+                            self._core.get_background_color(bg_entry),
+                            self._core.get_background_color(bg_entry, compat=True))
 
     def set_background(self, bg_type):
-        # TODO update window background
         self._init_background(BG_INDEX_MAP[bg_type],
-                              self._core.get_background_color(bg_type))
+                              self._core.get_background_color(bg_type),
+                              self._core.get_background_color(bg_type, compat=True))
 
     # ------------ Windows: Handles -----------------
 

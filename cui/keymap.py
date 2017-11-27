@@ -104,12 +104,19 @@ class WithKeymap(object, metaclass=WithKeymapMeta):
         cls.__keymap__[parse_keychord_string(keychords)] = fn
         return fn
 
+    @classmethod
+    def get_keychord(cls, keychords):
+        return cls.__keymap__[parse_keychord_string(keychords)]
+
     def __init__(self):
         self._keymap = Keymap({}, [self.__class__])
 
     def set_instance_keychord(self, keychords, fn):
         self._keymap[parse_keychord_string(keychords)] = fn
         return fn
+
+    def get_instance_keychord(self, keychords):
+        return self._keymap[parse_keychord_string(keychords)]
 
     def input_delegate(self):
         return None

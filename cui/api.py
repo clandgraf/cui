@@ -3,14 +3,17 @@
 # found in the LICENSE file.
 
 import contextlib
+import os
 
 from cui.core import \
-    core_api_ns, Core, \
+    context, core_api_ns, Core, \
     init_func, update_func, post_init_func
 from cui.colors import ColorException
+from cui.util import add_to_sys_path
 
 with core_api_ns(globals()) as core_api:
     core_api('message')
+    core_api('exception')
     core_api('is_update_func')
     core_api('remove_update_func')
     core_api('add_exit_handler')
@@ -51,13 +54,22 @@ with core_api_ns(globals()) as core_api:
     core_api('delete_selected_window', 'C-x 0')
 
 
-def set_global_key(keychord, fn):
-    Core.set_keychord(keychord, fn)
+def base_directory(rel_path):
+    return os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')),
+                        rel_path)
 
+
+def _set_key(keymap, keychord, fn):
+    old_fn = keymap.get_keychord(keychord)
+    if old_fn:
+        message('Overwriting shortcut \'%s\'.' % old_fn.__name__)
+    return keymap.set_keychord(keychord, fn)
+
+def set_global_key(keychord, fn):
+    return _set_key(Core, keychord, fn)
 
 def set_local_key(buffer_class, keychord, fn):
-    buffer_class.set_keychord(keychord, fn)
-
+    return _set_key(buffer_class, keychord, fn)
 
 def global_key(keychord):
     def _global_key(fn):

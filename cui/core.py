@@ -43,6 +43,11 @@ def core_api_ns(_globals):
     yield _core_api
 
 
+@contextlib.contextmanager
+def context():
+    yield Core()
+
+
 def init_func(fn):
     """
     Decorator that marks a function as an initialization function.
@@ -154,6 +159,11 @@ class Core(WithKeymap,
             self.logger.log(log_message)
         elif show_log:
             self.logger.log(msg)
+
+    def exception(self):
+        exc_type, exc_value, exc_tb = sys.exc_info()
+        cui.message(traceback.format_exception_only(exc_type, exc_value)[-1],
+                    log_message=traceback.format_exc())
 
     def get_buffer(self, buffer_class, *args):
         buffer_name = buffer_class.name(*args)
@@ -308,9 +318,7 @@ class Core(WithKeymap,
             else:
                 self.message(' '.join(self._current_keychord), show_log=False)
         except:
-            exc_type, exc_value, exc_tb = sys.exc_info()
-            cui.message(traceback.format_exception_only(exc_type, exc_value)[0],
-                        log_message=traceback.format_exc())
+            cui.exception()
             self._current_keychord = []
 
     def run(self):

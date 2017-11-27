@@ -3,17 +3,13 @@
 TODO
 ====
 
- --> Update window backgrounds when fg-color changes
-     --> Keep created curses-windows in frame.
-     --> On close remove those windows
-     --> when color changes update all windows in frame
+ --> buffer_keys functions should get added to cui.api
 
  --> Interactive Commands with input from minibuffer
 
  --> @update_func currently not used
      -> either remove or implement via threading
 
- --> CuiEvalBuffer
  --> CuiEvalServer
 
  --> Resetting, switching themes

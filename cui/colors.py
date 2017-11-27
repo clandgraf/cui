@@ -66,6 +66,8 @@ FGCOL_MAP = {
     'info':              'green'
 }
 
+FGCOL_MAP_COMPAT = FGCOL_MAP.copy()
+
 BGCOL_MAP = {
     'default':           'black',
     'selection':         'white',
@@ -73,6 +75,8 @@ BGCOL_MAP = {
     'modeline_inactive': 'black',
     'special':           'white'
 }
+
+BGCOL_MAP_COMPAT = BGCOL_MAP.copy()
 
 COLOR_RE = re.compile('#(%(h)s)(%(h)s)(%(h)s)' % {'h': '[0-9a-fA-F]{2}'})
 
@@ -98,7 +102,6 @@ class ColorCore(object):
         COLOR_MAP[name] = (r, g, b)
 
     def def_foreground(self, fg_type, color_name):
-        # TODO curses frame needs update
         if color_name is not None and color_name not in COLOR_MAP:
             raise ColorException('No color named %s' % color_name)
 
@@ -120,11 +123,11 @@ class ColorCore(object):
     def get_color(self, name):
         return COLOR_MAP.get(name)
 
-    def get_foreground_color(self, fg_type):
-        return FGCOL_MAP[fg_type]
+    def get_foreground_color(self, fg_type, compat=False):
+        return (FGCOL_MAP_COMPAT if compat else FGCOL_MAP).get(fg_type)
 
-    def get_background_color(self, bg_type):
-        return BGCOL_MAP[bg_type]
+    def get_background_color(self, bg_type, compat=False):
+        return (BGCOL_MAP_COMPAT if compat else BGCOL_MAP)[bg_type]
 
     def get_backgrounds(self):
         return BGCOL_MAP.keys()

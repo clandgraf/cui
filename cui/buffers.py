@@ -30,6 +30,7 @@ from cui.util import get_base_classes, deep_get, deep_put, minmax
 from cui.keymap import WithKeymap
 from cui import core
 from cui import symbols
+from cui import api
 
 
 def pad_left(width, string):
@@ -443,6 +444,14 @@ def previous_char(buf):
     return buf.set_cursor(buf.cursor - 1)
 
 @with_current_buffer
+def first_char(buf):
+    return buf.set_cursor(0)
+
+@with_current_buffer
+def last_char(buf):
+    return buf.set_cursor(len(buf.buffer()))
+
+@with_current_buffer
 def delete_next_char(buf):
     buf.delete_chars(1)
 
@@ -464,6 +473,8 @@ def next_history_item(buf):
 class ConsoleBuffer(ScrollableBuffer):
     __keymap__ = {
         '<enter>': with_current_buffer(lambda buf: buf.send_current_buffer()),
+        'C-a':     first_char,
+        'C-e':     last_char,
         'C-?':     delete_previous_char,
         '<del>':   delete_next_char,
         '<left>':  previous_char,
@@ -527,6 +538,9 @@ class ConsoleBuffer(ScrollableBuffer):
             self._cursor = cur
             return True
         return False
+
+    def buffer(self):
+        return self._buffer
 
     def buffer_line(self, cursor):
         bstring = self._buffer + ' '
