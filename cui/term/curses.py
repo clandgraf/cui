@@ -196,7 +196,7 @@ class Frame(term.Frame):
             fg = self._core.get_foreground_color(foreground, compat=True) or \
                  self._core.get_foreground_color('default', compat=True)
         return \
-            curses.color_pair(self._color_pair_from_color(fg, background)) | \
+            curses.color_pair(self._color_pair_from_color(fg, background or 'default')) | \
             curses_attributes(attributes)
 
     # ------------ Colors: Initialization ------------

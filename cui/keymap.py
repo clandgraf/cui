@@ -109,6 +109,7 @@ class WithKeymap(object, metaclass=WithKeymapMeta):
         return cls.__keymap__[parse_keychord_string(keychords)]
 
     def __init__(self):
+        super(WithKeymap, self).__init__()
         self._keymap = Keymap({}, [self.__class__])
 
     def set_instance_keychord(self, keychords, fn):

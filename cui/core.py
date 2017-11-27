@@ -25,6 +25,13 @@ __all__ = ['init_func', 'Core']
 
 # =================================== API ======================================
 
+def interactive(*args, **kwargs):
+    def _interactive(fn):
+        fn.__cui__args__ = args
+        fn.__cui__kwargs__ = kwargs
+        return fn
+    return _interactive
+
 # Package Lifecycle
 
 def core_api(_globals, fn_name, keychords=None):
@@ -298,6 +305,9 @@ class Core(WithKeymap,
 
     def takes_input(self):
         return self.current_buffer().takes_input
+
+    def open_minibuffer(self):
+        pass
 
     def dispatch_input(self, keychord, is_input):
         try:

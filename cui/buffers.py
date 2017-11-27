@@ -2,8 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-# TODO move concrete classes to own module
-
 """
 This module provides abstract buffer classes to derive your own
 concrete or abstract buffer classes from, as well as functions
@@ -470,7 +468,11 @@ def next_history_item(buf):
     if buf.history_index != -1:
         buf.activate_history_item(buf.history_index + 1)
 
-class ConsoleBuffer(ScrollableBuffer):
+
+class InputBuffer(WithKeymap):
+    """
+    Buffer Mixin for line-based editing
+    """
     __keymap__ = {
         '<enter>': with_current_buffer(lambda buf: buf.send_current_buffer()),
         'C-a':     first_char,
@@ -483,16 +485,14 @@ class ConsoleBuffer(ScrollableBuffer):
         '<down>':  next_history_item,
     }
 
-    def __init__(self, *args):
-        super(ConsoleBuffer, self).__init__(*args)
-        self._chistory = []
+    def __init__(self, *args, **kwargs):
+        super(InputBuffer, self).__init__()
         self._bhistory = []
         self._bhistory_index = -1
         self._saved_buffer = ''
         self._buffer = ''
         self._cursor = 0
         self.prompt = '> '
-        self._to_bottom = False
 
     @property
     def takes_input(self):
@@ -553,6 +553,25 @@ class ConsoleBuffer(ScrollableBuffer):
                 if cursor else \
                 self._buffer]
 
+    def send_current_buffer(self):
+        self._bhistory.append(self._buffer)
+        self._bhistory_index = -1
+        b = self._buffer
+        self._buffer = ''
+        self._cursor = 0
+        self.on_send_current_buffer(b)
+        self._to_bottom = True
+
+    def on_send_current_buffer(self, b):
+        pass
+
+
+class ConsoleBuffer(InputBuffer, ScrollableBuffer):
+    def __init__(self, *args):
+        super(ConsoleBuffer, self).__init__(*args)
+        self._chistory = []
+        self._to_bottom = False
+
     def get_lines(self, window):
         if window == cui.selected_window() and self._to_bottom:
             first_row = max(self.line_count() - window.dimensions[0], 0)
@@ -567,17 +586,8 @@ class ConsoleBuffer(ScrollableBuffer):
 
     def send_current_buffer(self):
         self._chistory.append(self.buffer_line(cursor=False))
-        self._bhistory.append(self._buffer)
-        self._bhistory_index = -1
-        b = self._buffer
-        self._buffer = ''
-        self._cursor = 0
-        self.on_send_current_buffer(b)
-        self._to_bottom = True
+        super(ConsoleBuffer, self).send_current_buffer()
 
     def extend(self, *args):
         self._chistory.extend(args)
         self._to_bottom = True
-
-    def on_send_current_buffer(self, b):
-        pass

@@ -15,10 +15,18 @@ def display_help(buffer_object):
 
 
 class HelpBuffer(buffers.ScrollableBuffer):
+    """
+    Display documentation and shortcuts defined for a specific buffer.
+
+    Use q to close the buffer again.
+    """
+
     __keymap__ = {
         'q': buffers.close_buffer,
         '<up>': buffers.scroll_up,
-        '<down>': buffers.scroll_down
+        '<down>': buffers.scroll_down,
+        '<pgup>': buffers.scroll_page_up,
+        '<pgdown>': buffers.scroll_page_down,
     }
 
     @classmethod
@@ -33,11 +41,27 @@ class HelpBuffer(buffers.ScrollableBuffer):
     def _render_lines(self):
         keymap = self._buffer_class.__keymap__.flattened()
         self._lines = []
-        self._lines.append(self._buffer_class.__name__)
+        self._lines.extend([
+            {'content': self._buffer_class.__name__, 'attributes': ['bold']},
+            {'content': '=' * len(self._buffer_class.__name__), 'attributes': ['bold']},
+            '',
+        ])
         if self._buffer_class.__doc__:
             self._lines.extend((line.strip() for line in self._buffer_class.__doc__.split('\n')))
             self._lines.append('')
         for k, v in keymap.items():
+            self._lines.append([{'content': '%s' % k, 'attributes': ['bold']},
+                                ': %s' % (v.__name__)])
+            self._lines.extend(('  %s' % line.strip()
+                                for line in (v.__doc__ or '<No documentation>').split('\n')))
+
+        self._lines.extend([
+            '',
+            {'content': 'Global Keys', 'attributes': ['bold']},
+            {'content': '===========', 'attributes': ['bold']},
+            ''
+        ])
+        for k, v in core.Core.__keymap__.flattened().items():
             self._lines.append([{'content': '%s' % k, 'attributes': ['bold']},
                                 ': %s' % (v.__name__)])
             self._lines.extend(('  %s' % line.strip()
