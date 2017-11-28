@@ -62,7 +62,9 @@ def with_current_buffer(fn):
 
 
 def close_buffer():
-    """Kill current buffer and delete selected window."""
+    """
+    Kill current buffer and delete selected window.
+    """
     cui.kill_current_buffer()
     cui.delete_selected_window()
 
@@ -135,22 +137,30 @@ class Buffer(WithKeymap):
 
 @with_current_buffer
 def scroll_up(b):
-    """Scroll current buffer one line up."""
+    """
+    Scroll current buffer one line up.
+    """
     b.scroll_up()
 
 @with_current_buffer
 def scroll_page_up(b):
-    """Scroll current buffer one page-size up."""
+    """
+    Scroll current buffer one page-size up.
+    """
     b.scroll_page_up()
 
 @with_current_buffer
 def scroll_down(b):
-    """Scroll current buffer one line down."""
+    """
+    Scroll current buffer one line down.
+    """
     b.scroll_down()
 
 @with_current_buffer
 def scroll_page_down(b):
-    """Scroll current buffer one page-size down."""
+    """
+    Scroll current buffer one page-size down.
+    """
     b.scroll_page_down()
 
 class ScrollableBuffer(Buffer):
@@ -186,42 +196,58 @@ class ScrollableBuffer(Buffer):
 
 @with_current_buffer
 def previous_item(b):
-    """Select the previous item."""
+    """
+    Select the previous item.
+    """
     b.item_up()
 
 @with_current_buffer
 def item_page_up(b):
-    """Moves selection one page up."""
+    """
+    Moves selection one page up.
+    """
     b.item_page_up()
 
 @with_current_buffer
 def item_home(b):
-    """Select the first item in buffer."""
+    """
+    Select the first item in buffer.
+    """
     b.item_home()
 
 @with_current_buffer
 def next_item(b):
-    """Select the next item."""
+    """
+    Select the next item.
+    """
     b.item_down()
 
 @with_current_buffer
 def item_page_down(b):
-    """Moves selection one page down."""
+    """
+    Moves selection one page down.
+    """
     b.item_page_down()
 
 @with_current_buffer
 def item_end(b):
-    """Select the last item in buffer."""
+    """
+    Select the last item in buffer.
+    """
     b.item_end()
 
 @with_current_buffer
 def select_item(b):
-    """Invoke main action on the selected item."""
+    """
+    Invoke main action on the selected item.
+    """
     b.on_item_selected()
 
 @with_current_buffer
 def recenter_selection(b):
-    """Recenter selection the current buffer."""
+    """
+    Recenter selection the current buffer.
+    """
     b.recenter()
 
 class ListBuffer(ScrollableBuffer):
@@ -326,12 +352,18 @@ class ListBuffer(ScrollableBuffer):
 
 @with_current_buffer
 def expand_node(b):
+    """
+    Expand the currently selected node.
+    """
     item = b.selected_item()
     if not b.is_expanded(item) and b.has_children(item):
         b.set_expanded(item, True)
 
 @with_current_buffer
 def collapse_node(b):
+    """
+    Collapse the currently selected node.
+    """
     item = b.selected_item()
     if b.is_expanded(item) and b.has_children(item):
         b.set_expanded(item, False)

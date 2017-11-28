@@ -10,7 +10,9 @@ from cui import core
 
 @buffers.with_current_buffer
 def display_help(buffer_object):
-    """Display a help buffer"""
+    """
+    Display a help buffer
+    """
     return cui.buffer_visible(HelpBuffer, buffer_object.__class__, to_window=True)
 
 
@@ -107,6 +109,12 @@ class EvalBuffer(buffers.ConsoleBuffer):
 
 @buffers.buffer_keys('C-x C-l', 'show_log')
 class LogBuffer(buffers.ListBuffer):
+    """
+    Displays messages posted via cui.message or cui.exception.
+
+    The maximum can be set via variable message-limit.
+    """
+
     @classmethod
     def name(cls):
         return "Logger"

@@ -371,11 +371,15 @@ class WindowSet(object):
         return w2['content']
 
     def split_window_below(self):
-        """Split this window and create a new one below it."""
+        """
+        Split this window and create a new one below it.
+        """
         return self._split_window('bsplit')
 
     def split_window_right(self):
-        """Split this window and create a new one to the right of it."""
+        """
+        Split this window and create a new one to the right of it.
+        """
         return self._split_window('rsplit')
 
     def delete_selected_window(self):
