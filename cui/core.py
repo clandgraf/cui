@@ -14,7 +14,6 @@ import cui
 import cui.term.curses
 
 from cui.term import Frame
-from cui.logger import Logger
 from cui.keymap import WithKeymap
 from cui.util import deep_get, deep_put, forward
 from cui.colors import ColorCore, ColorException
@@ -112,13 +111,18 @@ def mini_buffer_default():
             '%s/%s' % (c._frame._wm.window_set_index + 1, c._frame._wm.window_set_count))
 
 
-def _init_state(core):
-    core.def_variable(['tab-stop'], 4)
-    core.def_variable(['tree-tab'], 2)
-    core.def_variable(['mini-buffer-content'], mini_buffer_default)
+class Logger(object):
+    def __init__(self):
+        self.messages = []
 
-    from cui.buffers_std import LogBuffer
-    core.def_variable(['default-buffer-class'], LogBuffer)
+    def log(self, msg):
+        if (len(self.messages) > 1000):
+            self.messages.pop(0)
+        self.messages.append(msg)
+
+    def clear(self):
+        self.messages = []
+
 
 @forward(lambda self: self._frame,
          ['replace_buffer',
@@ -139,11 +143,9 @@ class Core(WithKeymap,
 
     def __init__(self):
         super(Core, self).__init__()
-        self._state = {}
+        self._init_state()
         self.logger = Logger()
         self.io_selector = IOSelector(timeout=None, as_update_func=False)
-
-        _init_state(self)
         self.buffers = []
         self._exit_handlers = []
         self._current_keychord = []
@@ -152,6 +154,15 @@ class Core(WithKeymap,
         self._frame = None
         self._removed_update_funcs = []
         atexit.register(self._at_exit)
+
+    def _init_state(self):
+        self._state = {}
+        self.def_variable(['tab-stop'], 4)
+        self.def_variable(['tree-tab'], 2)
+        self.def_variable(['mini-buffer-content'], mini_buffer_default)
+
+        from cui.buffers_std import LogBuffer
+        self.def_variable(['default-buffer-class'], LogBuffer)
 
     def message(self, msg, show_log=True, log_message=None):
         """
@@ -168,6 +179,9 @@ class Core(WithKeymap,
             self.logger.log(msg)
 
     def exception(self):
+        """
+        Call to log the last thrown exception exception.
+        """
         exc_type, exc_value, exc_tb = sys.exc_info()
         cui.message(traceback.format_exception_only(exc_type, exc_value)[-1],
                     log_message=traceback.format_exc())
