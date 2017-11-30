@@ -24,11 +24,10 @@ import itertools
 
 import cui
 
-from cui.util import get_base_classes, deep_get, deep_put, minmax
-from cui.keymap import WithKeymap
-from cui import core
 from cui import symbols
 from cui import api
+from cui.keymap import WithKeymap
+from cui.util import get_base_classes, deep_get, deep_put, minmax
 
 
 def pad_left(width, string):
@@ -57,7 +56,7 @@ def with_window(f):
 def with_current_buffer(fn):
     @functools.wraps(fn)
     def _fn():
-        return fn(core.Core().current_buffer())
+        return fn(cui.current_buffer())
     return _fn
 
 
@@ -431,7 +430,7 @@ class TreeBuffer(ListBuffer):
         return self.selected_node()['item']
 
     def render_item(self, window, item, index):
-        tree_tab = core.Core().get_variable(['tree-tab'])
+        tree_tab = cui.get_variable(['tree-tab'])
         rendered_node = self.render_node(window, item['item'], item['depth'],
                                          window.dimensions[1] - tree_tab * item['depth'])
         return [[self.render_tree_tab(window, item, line, tree_tab, line == rendered_node[0]),
@@ -524,7 +523,6 @@ class InputBuffer(WithKeymap):
         self._saved_buffer = ''
         self._buffer = ''
         self._cursor = 0
-        self.prompt = '> '
 
     @property
     def takes_input(self):
@@ -599,10 +597,19 @@ class InputBuffer(WithKeymap):
 
 
 class ConsoleBuffer(InputBuffer, ScrollableBuffer):
+    __keymap__ = {
+        'C-d': close_buffer
+    }
+
     def __init__(self, *args):
         super(ConsoleBuffer, self).__init__(*args)
+        self._prompt = '> '
         self._chistory = []
         self._to_bottom = False
+
+    @property
+    def prompt(self):
+        return self._prompt
 
     def get_lines(self, window):
         if window == cui.selected_window() and self._to_bottom:

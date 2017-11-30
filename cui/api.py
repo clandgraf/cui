@@ -7,7 +7,8 @@ import os
 
 from cui.core import \
     context, core_api_ns, Core, \
-    init_func, update_func, post_init_func
+    init_func, update_func, post_init_func, \
+    runloop_cancel, runloop_result
 from cui.colors import ColorException
 from cui.util import add_to_sys_path
 
@@ -20,6 +21,8 @@ with core_api_ns(globals()) as core_api:
     core_api('remove_exit_handler')
     core_api('running')
     core_api('bye',                    'C-x C-c')
+    core_api('runloop_enter')
+    core_api('activate_minibuffer')
 
     core_api('def_variable')
     core_api('get_variable')
@@ -52,6 +55,19 @@ with core_api_ns(globals()) as core_api:
     core_api('select_bottom_window',   'M-<down>')
     core_api('delete_all_windows',     'C-x 1')
     core_api('delete_selected_window', 'C-x 0')
+
+
+def read_integer(prompt):
+    while True:
+        try:
+            return int(read_string(prompt))
+        except ValueError:
+            pass
+
+
+def read_string(prompt):
+    return runloop_enter(lambda: activate_minibuffer('%s: ' % prompt,
+                                                     lambda b: runloop_result(b)))
 
 
 def base_directory(rel_path):

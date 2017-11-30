@@ -13,6 +13,7 @@ import traceback
 import cui
 import cui.term.curses
 
+from cui import buffers
 from cui.term import Frame
 from cui.keymap import WithKeymap
 from cui.util import deep_get, deep_put, forward
@@ -23,13 +24,6 @@ from cui.io_selector import IOSelector
 __all__ = ['init_func', 'Core']
 
 # =================================== API ======================================
-
-def interactive(*args, **kwargs):
-    def _interactive(fn):
-        fn.__cui__args__ = args
-        fn.__cui__kwargs__ = kwargs
-        return fn
-    return _interactive
 
 # Package Lifecycle
 
@@ -105,11 +99,6 @@ def update_func(fn):
 
 # ==============================================================================
 
-def mini_buffer_default():
-    c = Core()
-    return (c.last_message,
-            '%s/%s' % (c._frame._wm.window_set_index + 1, c._frame._wm.window_set_count))
-
 
 class Logger(object):
     def __init__(self):
@@ -122,6 +111,60 @@ class Logger(object):
 
     def clear(self):
         self.messages = []
+
+
+def echo_area_default():
+    c = Core()
+    return (c.last_message,
+            '%s/%s' % (c._frame._wm.window_set_index + 1, c._frame._wm.window_set_count))
+
+
+class MiniBuffer(buffers.InputBuffer):
+    def __init__(self, core):
+        super(MiniBuffer, self).__init__()
+        self._core = core
+
+    @property
+    def prompt(self):
+        return self._core.mini_buffer_state.get('prompt', '')
+
+    def on_send_current_buffer(self, b):
+        if self._core.mini_buffer_state:
+            self._core.mini_buffer_state.get('submit_function', lambda _: None)(b)
+
+
+class RunloopControl(Exception):
+    def __init__(self):
+        super(RunloopControl, self).__init__()
+
+
+class RunloopCancel(RunloopControl):
+    def __init__(self):
+        super(RunloopCancel, self).__init__()
+
+
+class RunloopResult(RunloopControl):
+    def __init__(self, result):
+        super(RunloopResult, self).__init__()
+        self.result = result
+
+
+class RunloopState(object):
+    def __init__(self):
+        self.running = False
+        self.current_keychord = []
+        self.mini_buffer_state = None
+
+
+def runloop_cancel():
+    """
+    Cancels the current runloop
+    """
+    raise RunloopCancel()
+
+
+def runloop_result(result):
+    raise RunloopResult(result)
 
 
 @forward(lambda self: self._frame,
@@ -147,19 +190,20 @@ class Core(WithKeymap,
         self.logger = Logger()
         self.io_selector = IOSelector(timeout=None, as_update_func=False)
         self.buffers = []
+        self._mini_buffer = MiniBuffer(self)
         self._exit_handlers = []
-        self._current_keychord = []
         self._last_message = ""
-        self._running = False
         self._frame = None
         self._removed_update_funcs = []
+        self._runloops = []
+        self._running = False
         atexit.register(self._at_exit)
 
     def _init_state(self):
         self._state = {}
         self.def_variable(['tab-stop'], 4)
         self.def_variable(['tree-tab'], 2)
-        self.def_variable(['mini-buffer-content'], mini_buffer_default)
+        self.def_variable(['echo-area'], echo_area_default)
 
         from cui.buffers_std import LogBuffer
         self.def_variable(['default-buffer-class'], LogBuffer)
@@ -197,6 +241,14 @@ class Core(WithKeymap,
         else:
             return buffers[0]
 
+    @property
+    def mini_buffer(self):
+        return self._mini_buffer
+
+    @property
+    def mini_buffer_state(self):
+        return self._runloops[0].mini_buffer_state
+
     def create_buffer(self, buffer_class, *args):
         buffer_object = self.get_buffer(buffer_class, *args)
         if buffer_object == None:
@@ -233,7 +285,7 @@ class Core(WithKeymap,
 
     def current_buffer(self):
         """Return the buffer in the selected window."""
-        return self.selected_window().buffer()
+        return self._mini_buffer if self.mini_buffer_state else self.selected_window().buffer()
 
     def get_variable(self, path):
         return deep_get(self._state, path, return_none=False)
@@ -308,42 +360,77 @@ class Core(WithKeymap,
         return self._last_message
 
     @property
-    def mini_buffer(self):
-        return self.get_variable(['mini-buffer-content'])()
+    def echo_area(self):
+        return self.get_variable(['echo-area'])()
 
     def bye(self):
+        for rl in self._runloops:
+            rl.running = False
         self._running = False
 
     def input_delegate(self):
-        return self.selected_window().buffer()
+        return self.current_buffer()
 
     def takes_input(self):
         return self.current_buffer().takes_input
 
-    def open_minibuffer(self):
-        pass
-
     def dispatch_input(self, keychord, is_input):
+        rl = self._runloops[0]
+        if keychord == 'C-g':
+            runloop_cancel()
+        else:
+            try:
+                rl.current_keychord.append(keychord)
+                is_keychord_handled = self.handle_input(rl.current_keychord)
+                if is_keychord_handled:
+                    # current_keychord was handled via keymap
+                    rl.current_keychord = []
+                elif is_input and len(rl.current_keychord) == 1:
+                    # kc is direct input that was not handled and not beginning of sequence
+                    self.current_buffer().insert_chars(keychord)
+                    rl.current_keychord = []
+                elif is_keychord_handled is None:
+                    # current_keychord is no suffix for
+                    self.message('Unknown keychord: %s' % ' '.join(rl.current_keychord),
+                                 show_log=False)
+                    rl.current_keychord = []
+                else:
+                    self.message(' '.join(rl.current_keychord), show_log=False)
+            except RunloopResult:
+                raise
+            except RunloopCancel:
+                raise
+            except:
+                cui.exception()
+                rl.current_keychord = []
+
+    def activate_minibuffer(self, prompt, submit_fn):
+        self._runloops[0].mini_buffer_state = {
+            'prompt': prompt,
+            'submit_function': submit_fn
+        }
+
+    def runloop_enter(self, pre_loop_fn=None, cancel_raises=False):
+        self._runloops.insert(0, RunloopState())
+        self._runloops[0].running = True
+        if pre_loop_fn:
+            pre_loop_fn()
+
+        result = None
         try:
-            self._current_keychord.append(keychord)
-            is_keychord_handled = self.handle_input(self._current_keychord)
-            if is_keychord_handled:
-                # current_keychord was handled via keymap
-                self._current_keychord = []
-            elif is_input and len(self._current_keychord) == 1:
-                # kc is direct input that was not handled and not beginning of sequence
-                self.current_buffer().insert_chars(keychord)
-                self._current_keychord = []
-            elif is_keychord_handled is None:
-                # current_keychord is no suffix for
-                self.message('Unknown keychord: %s' % ' '.join(self._current_keychord),
-                             show_log=False)
-                self._current_keychord = []
-            else:
-                self.message(' '.join(self._current_keychord), show_log=False)
-        except:
-            cui.exception()
-            self._current_keychord = []
+            while self._runloops[0].running:
+                self._update_ui()
+                self.io_selector.select()
+        except RunloopResult as e:
+            result = e.result
+        except RunloopCancel:
+            self.message('Cancelled.')
+            if cancel_raises:
+                raise
+        finally:
+            self.io_selector.invalidate()
+            self._runloops.pop(0)
+        return result
 
     def run(self):
         self.buffers.append(self.get_variable(['default-buffer-class'])())
@@ -352,7 +439,5 @@ class Core(WithKeymap,
         self._post_init_packages()
         self._running = True
         while self._running:
-            self._update_ui()
-            self.io_selector.select()
-
+            self.runloop_enter()
         self._run_exit_handlers()

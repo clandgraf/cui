@@ -9,6 +9,7 @@ import math
 from cui.util import deep_put, forward
 from cui import core
 from cui import symbols
+from cui import buffers
 
 MIN_WINDOW_HEIGHT = 4
 MIN_WINDOW_WIDTH  = 20
@@ -76,12 +77,15 @@ class WindowBase(object):
         return _col
 
 
-class MiniBuffer(WindowBase):
+class MiniBufferWindow(WindowBase):
     def __init__(self, screen):
-        super(MiniBuffer, self).__init__(
+        super(MiniBufferWindow, self).__init__(
             screen,
             (1, screen.get_dimensions()[1], screen.get_dimensions()[0] - 1, 0))
         self._screen = screen
+
+    def buffer(self):
+        return self._mini_buffer
 
     def get_content_dimensions(self, dim):
         return (dim[0], dim[1] - 1, dim[2], dim[3])
@@ -90,15 +94,20 @@ class MiniBuffer(WindowBase):
         max_y, max_x = self._screen.get_dimensions()
         self._update_dimensions((1, max_x, max_y - 1, 0))
 
-    def render(self):
-        left, right = self._core.mini_buffer
+    def get_line(self):
+        if self._core.mini_buffer_state:
+            return self._core._mini_buffer.buffer_line(cursor=True)
+
+        left, right = self._core.echo_area
         left = left.split('\n', 1)[0]
         right = right.split('\n', 1)[0]
         space = (self.dimensions[1] - len(left) - len(right))
         if space < 0:
             left = left[:(space - 4)] + '... '
+        return [left, ' ' * max(0, space), right]
 
-        self._render_line([left, ' ' * max(0, space), right],
+    def render(self):
+        self._render_line(self.get_line(),
                           ' ' * self._core.get_variable(['tab-stop']),
                           0)
         self._handle.clear_line()
@@ -456,7 +465,7 @@ class WindowManager(object):
         self._window_sets = [WindowSet(screen)]
         self._named_window_sets = {}
         self._active_window_set = 0
-        self._mini_buffer_win = MiniBuffer(self._screen)
+        self._mini_buffer_win = MiniBufferWindow(self._screen)
 
     @property
     def window_set_index(self):

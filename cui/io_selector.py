@@ -41,6 +41,7 @@ class IOSelector(object):
 
     def __init__(self, timeout=0, as_update_func=True):
         self._timeout = timeout
+        self._invalidated = False
         self._as_update_func = as_update_func
         self._waitables = []
         self._handlers = {}
@@ -69,13 +70,28 @@ class IOSelector(object):
         except ValueError:
             pass
 
+    def invalidate(self):
+        """
+        Handlers should call this before returning if they recursively
+        invoke select. As the recursive call to select may already have
+        processed handlers in our readable queue, we should not process
+        these.
+        """
+        self._invalidated = True
+
     def select(self):
         if not self._waitables:
             return
 
         readables, _, _ = select.select(self._waitables, [], [], self._timeout)
         for waitable in readables:
+            self._invalidated = False
             self._handlers[id(waitable)](waitable)
+
+            # As select may be invoked recursively inside a handler the
+            # select call may be invalidated after executing a handler
+            if self._invalidated:
+                break
 
     def register_async(self, name, handler):
         if '\n' in name:
