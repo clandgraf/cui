@@ -419,6 +419,7 @@ class WindowSet(object):
 
     def delete_all_windows(self):
         self._root = self._selected_window
+        self._root['parent'] = None
         self._windows = {id(self._root['content']): self._root}
         self.resize()
 
