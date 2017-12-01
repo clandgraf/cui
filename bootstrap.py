@@ -3,6 +3,7 @@
 import json
 import os.path
 import subprocess
+import argparse
 
 def create_requirements():
     with open('./requirements.txt', 'w') as req_file:
@@ -19,10 +20,25 @@ def create_requirements():
                 pkg_file.close()
 
 
-def main():
+def bootstrap():
     create_requirements()
     subprocess.run(['virtualenv', '.'])
     subprocess.run(['bin/pip', 'install', '-r', 'requirements.txt'])
+
+
+def main():
+    parser = argparse.ArgumentParser(prog='bootstrap.py')
+    subparsers = parser.add_subparsers()
+    bootstrap_parser = subparsers.add_parser('bootstrap',
+                                             help='Bootstrap cui dev environment')
+    bootstrap_parser.set_defaults(func=bootstrap)
+
+    bootstrap_parser = subparsers.add_parser('requirements',
+                                             help='Create a requirements.txt')
+    bootstrap_parser.set_defaults(func=create_requirements)
+    args = parser.parse_args()
+    args.func()
+
 
 
 if __name__ == '__main__':

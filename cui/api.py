@@ -131,7 +131,10 @@ def def_colors(name, string):
     Define a new color or redefine an existing color.
 
     The color should be specified as a hex color-string in the format
-    ``#rrggbb``.
+    ``#rrggbb``. If the name provided already exists, the color will
+    be redefined, if it is a new color, it will be created.
+
+    :param name: The name of the color
     """
     try:
         return Core().def_colors(name, string)
@@ -139,6 +142,13 @@ def def_colors(name, string):
         message('%s' % e)
 
 def def_background(bg_type, color_name):
+    """
+    Redefine an existing background definition.
+
+    The name should correspond to a color definition previously
+    defined with ``def_colors``.
+
+    """
     try:
         return Core().def_background(bg_type, color_name)
     except ColorException as e:

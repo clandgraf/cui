@@ -267,12 +267,16 @@ class Core(WithKeymap,
         return self.buffers[(self.buffers.index(buffer_object) - 1)]
 
     def previous_buffer(self):
-        """Switch to the previous buffer in the selected window."""
+        """
+        Switch to the previous buffer in the selected window.
+        """
         selected_window = self.selected_window()
         selected_window.set_buffer(self._find_previous_buffer(selected_window.buffer()))
 
     def next_buffer(self):
-        """Switch to the next buffer in the selected window."""
+        """
+        Switch to the next buffer in the selected window.
+        """
         selected_window = self.selected_window()
         selected_window.set_buffer(self._find_next_buffer(selected_window.buffer()))
 
@@ -284,7 +288,9 @@ class Core(WithKeymap,
             cui.switch_buffer(self.get_variable('default-buffer-class'))
 
     def current_buffer(self):
-        """Return the buffer in the selected window."""
+        """
+        Return the buffer in the selected window.
+        """
         return self._mini_buffer if self.mini_buffer_state else self.selected_window().buffer()
 
     def get_variable(self, path):

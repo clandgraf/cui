@@ -6,5 +6,9 @@
     {
 	"name": "cui_pydevd",
 	"path": "git+https://github.com/clandgraf/cui_pydevd"
+    },
+    {
+	"name": "cui_source",
+	"path": "git+https://github.com/clandgraf/cui_source"
     }
 ]

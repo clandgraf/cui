@@ -46,16 +46,16 @@ class HelpBuffer(buffers.ScrollableBuffer):
         self._lines.extend([
             {'content': self._buffer_class.__name__, 'attributes': ['bold']},
             {'content': '=' * len(self._buffer_class.__name__), 'attributes': ['bold']},
-            '',
         ])
         if self._buffer_class.__doc__:
             self._lines.extend((line.strip() for line in self._buffer_class.__doc__.split('\n')))
+        else:
             self._lines.append('')
         for k, v in keymap.items():
             self._lines.append([{'content': '%s' % k, 'attributes': ['bold']},
                                 ': %s' % (v.__name__)])
             self._lines.extend(('  %s' % line.strip()
-                                for line in (v.__doc__ or '<No documentation>').split('\n')))
+                                for line in (v.__doc__ or '\n<No documentation>\n').split('\n')))
 
         self._lines.extend([
             '',
@@ -67,7 +67,7 @@ class HelpBuffer(buffers.ScrollableBuffer):
             self._lines.append([{'content': '%s' % k, 'attributes': ['bold']},
                                 ': %s' % (v.__name__)])
             self._lines.extend(('  %s' % line.strip()
-                                for line in (v.__doc__ or '<No documentation>').split('\n')))
+                                for line in (v.__doc__ or '\n<No documentation>\n').split('\n')))
 
     def line_count(self):
         return len(self._lines)
