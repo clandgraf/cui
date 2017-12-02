@@ -515,7 +515,7 @@ class WindowManager(object):
         self._named_window_sets = {k:v for k, v in self._named_window_sets.items()
                                    if v != index}
         self._window_sets.pop(index)
-        if index >= self._active_window_set:
+        if index <= self._active_window_set:
             self._active_window_set -= 1
 
     def delete_window_set(self):
