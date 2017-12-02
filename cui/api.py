@@ -57,6 +57,12 @@ with core_api_ns(globals()) as core_api:
     core_api('delete_selected_window', 'C-x 0')
 
 
+
+def api_fn(fn):
+    globals()[fn.__name__] = fn
+    return fn
+
+
 def read_integer(prompt):
     while True:
         try:
@@ -65,9 +71,10 @@ def read_integer(prompt):
             pass
 
 
-def read_string(prompt):
+def read_string(prompt, default=''):
     return runloop_enter(lambda: activate_minibuffer('%s: ' % prompt,
-                                                     lambda b: runloop_result(b)))
+                                                     lambda b: runloop_result(b),
+                                                     default))
 
 
 def base_directory(rel_path):

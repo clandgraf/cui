@@ -410,11 +410,12 @@ class Core(WithKeymap,
                 cui.exception()
                 rl.current_keychord = []
 
-    def activate_minibuffer(self, prompt, submit_fn):
+    def activate_minibuffer(self, prompt, submit_fn, default=''):
         self._runloops[0].mini_buffer_state = {
             'prompt': prompt,
             'submit_function': submit_fn
         }
+        self.mini_buffer.reset_buffer(default)
 
     def runloop_enter(self, pre_loop_fn=None, cancel_raises=False):
         self._runloops.insert(0, RunloopState())

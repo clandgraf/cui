@@ -119,9 +119,16 @@ class Buffer(WithKeymap):
 
     @property
     def takes_input(self):
+        """
+        Overwrite and return True if this buffer will take keyboard input for editing
+        """
         return False
 
     def send_input(self, string):
+        """
+        This function will be called if ``takes_input`` returns True, and
+        keyboard input has been made to this buffer.
+        """
         pass
 
     def on_pre_render(self):
@@ -535,6 +542,10 @@ class InputBuffer(WithKeymap):
     def delete_chars(self, length):
         if self._cursor < len(self._buffer):
             self._buffer = self._buffer[:self._cursor] + self._buffer[self._cursor + length:]
+
+    def reset_buffer(self, new_content=''):
+        self._buffer = new_content
+        self._cursor = len(self._buffer)
 
     @property
     def history_index(self):
