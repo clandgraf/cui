@@ -119,19 +119,44 @@ def echo_area_default():
             '%s/%s' % (c._frame._wm.window_set_index + 1, c._frame._wm.window_set_count))
 
 
+def complete_mini_buffer():
+    core.Core().current_buffer()
+
 class MiniBuffer(buffers.InputBuffer):
     def __init__(self, core):
         super(MiniBuffer, self).__init__()
         self._core = core
 
     @property
+    def _buffer(self):
+        return self._core.mini_buffer_state['buffer']
+
+    @_buffer.setter
+    def _buffer(self, value):
+        self._core.mini_buffer_state['buffer'] = value
+
+    @property
+    def _cursor(self):
+        return self._core.mini_buffer_state['cursor']
+
+    @_cursor.setter
+    def _cursor(self, value):
+        self._core.mini_buffer_state['cursor'] = value
+
+    @property
     def prompt(self):
         return self._core.mini_buffer_state.get('prompt', '')
+
+    def on_auto_complete(self):
+        if 'complete_function' not in self._core.mini_buffer_state:
+            return super(MiniBuffer, self).on_auto_complete()
+        return self._core.mini_buffer_state['complete_function'](self._buffer)
 
     def on_send_current_buffer(self, b):
         if self._core.mini_buffer_state:
             self._core.mini_buffer_state.get('submit_function', lambda _: None)(b)
 
+# Runloop Control
 
 class RunloopControl(Exception):
     def __init__(self):
@@ -139,8 +164,11 @@ class RunloopControl(Exception):
 
 
 class RunloopCancel(RunloopControl):
-    def __init__(self):
-        super(RunloopCancel, self).__init__()
+    pass
+
+
+class RunloopExit(RunloopControl):
+    pass
 
 
 class RunloopResult(RunloopControl):
@@ -165,6 +193,44 @@ def runloop_cancel():
 
 def runloop_result(result):
     raise RunloopResult(result)
+
+
+def interactive(*args, **kwargs):
+    def _interactive(fn):
+        fn.__cui_interactive_args__ = args
+        fn.__cui_interactive_kwargs__ = kwargs
+        return fn
+    return _interactive
+
+
+# TODO can core._interactive be put into runloop_state???
+@contextlib.contextmanager
+def _interactive_context(handle_cancel):
+    """
+    This contextmanager ensures that RunloopCancel is always
+    caught by the top-level interactive command that is executed
+    """
+    interactive_set = Core().set_interactive(True)
+    try:
+        if interactive_set or handle_cancel:
+            try:
+                yield
+            except RunloopCancel:
+                Core().message('Interactive cancelled.')
+        else:
+            yield
+    finally:
+        if interactive_set:
+            Core().set_interactive(False)
+
+
+def run_interactive(fn, handle_cancel=False):
+    args = getattr(fn, '__cui_interactive_args__', [])
+    kwargs = getattr(fn, '__cui_interactive_kwargs__', {})
+
+    with _interactive_context(handle_cancel):
+        return fn(*[arg() for arg in args],
+                  **{kwarg: kwargs[kwarg]() for kwarg in kwargs})
 
 
 @forward(lambda self: self._frame,
@@ -197,6 +263,7 @@ class Core(WithKeymap,
         self._removed_update_funcs = []
         self._runloops = []
         self._running = False
+        self._interactive = False
         atexit.register(self._at_exit)
 
     def _init_state(self):
@@ -370,9 +437,7 @@ class Core(WithKeymap,
         return self.get_variable(['echo-area'])()
 
     def bye(self):
-        for rl in self._runloops:
-            rl.running = False
-        self._running = False
+        raise RunloopExit()
 
     def input_delegate(self):
         return self.current_buffer()
@@ -387,15 +452,17 @@ class Core(WithKeymap,
         else:
             try:
                 rl.current_keychord.append(keychord)
-                is_keychord_handled = self.handle_input(rl.current_keychord)
-                if is_keychord_handled:
+
+                fn = self.handle_input(rl.current_keychord)
+                if hasattr(fn, '__call__'):
                     # current_keychord was handled via keymap
+                    run_interactive(fn, handle_cancel=True)
                     rl.current_keychord = []
                 elif is_input and len(rl.current_keychord) == 1:
                     # kc is direct input that was not handled and not beginning of sequence
                     self.current_buffer().insert_chars(keychord)
                     rl.current_keychord = []
-                elif is_keychord_handled is None:
+                elif not fn:
                     # current_keychord is no suffix for
                     self.message('Unknown keychord: %s' % ' '.join(rl.current_keychord),
                                  show_log=False)
@@ -406,18 +473,28 @@ class Core(WithKeymap,
                 raise
             except RunloopCancel:
                 raise
+            except RunloopExit:
+                raise
             except:
                 cui.exception()
                 rl.current_keychord = []
 
-    def activate_minibuffer(self, prompt, submit_fn, default=''):
+    def activate_minibuffer(self, prompt, submit_fn, default='', complete_fn=None):
         self._runloops[0].mini_buffer_state = {
             'prompt': prompt,
-            'submit_function': submit_fn
+            'buffer': '',
+            'cursor': 0,
+            'submit_function': submit_fn,
+            'complete_function': complete_fn,
         }
         self.mini_buffer.reset_buffer(default)
 
-    def runloop_enter(self, pre_loop_fn=None, cancel_raises=False):
+    def set_interactive(self, interactive):
+        has_set = not self._interactive and interactive
+        self._interactive = interactive
+        return has_set
+
+    def runloop_enter(self, pre_loop_fn=None):
         self._runloops.insert(0, RunloopState())
         self._runloops[0].running = True
         if pre_loop_fn:
@@ -431,9 +508,10 @@ class Core(WithKeymap,
         except RunloopResult as e:
             result = e.result
         except RunloopCancel:
-            self.message('Cancelled.')
-            if cancel_raises:
+            # In interactive mode top-level interactive handles cancel
+            if self._interactive:
                 raise
+            self.message('Cancelled.')
         finally:
             self.io_selector.invalidate()
             self._runloops.pop(0)
@@ -444,7 +522,12 @@ class Core(WithKeymap,
         self._frame = cui.term.curses.Frame(self)
         self._init_packages()
         self._post_init_packages()
-        self._running = True
-        while self._running:
-            self.runloop_enter()
+        try:
+            self._running = True
+            while True:
+                self.runloop_enter()
+        except RunloopExit:
+            self.message('Exiting.')
+        finally:
+            self._running = False
         self._run_exit_handlers()

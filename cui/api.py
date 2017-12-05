@@ -3,12 +3,14 @@
 # found in the LICENSE file.
 
 import contextlib
+import functools
 import os
 
 from cui.core import \
     context, core_api_ns, Core, \
     init_func, update_func, post_init_func, \
-    runloop_cancel, runloop_result
+    runloop_cancel, runloop_result, \
+    run_interactive, interactive
 from cui.colors import ColorException
 from cui.util import add_to_sys_path
 
@@ -57,30 +59,11 @@ with core_api_ns(globals()) as core_api:
     core_api('delete_selected_window', 'C-x 0')
 
 
-
-def api_fn(fn):
-    globals()[fn.__name__] = fn
-    return fn
-
-
-def read_integer(prompt):
-    while True:
-        try:
-            return int(read_string(prompt))
-        except ValueError:
-            pass
-
-
-def read_string(prompt, default=''):
-    return runloop_enter(lambda: activate_minibuffer('%s: ' % prompt,
-                                                     lambda b: runloop_result(b),
-                                                     default))
-
-
 def base_directory(rel_path):
     return os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')),
                         rel_path)
 
+# Shortcuts
 
 def _set_key(keymap, keychord, fn):
     old_fn = keymap.get_keychord(keychord)
@@ -88,17 +71,47 @@ def _set_key(keymap, keychord, fn):
         message('Overwriting shortcut \'%s\'.' % old_fn.__name__)
     return keymap.set_keychord(keychord, fn)
 
+
 def set_global_key(keychord, fn):
     return _set_key(Core, keychord, fn)
 
+
 def set_local_key(buffer_class, keychord, fn):
     return _set_key(buffer_class, keychord, fn)
+
 
 def global_key(keychord):
     def _global_key(fn):
         set_global_key(keychord, fn)
         return fn
     return _global_key
+
+
+def api_fn(fn):
+    globals()[fn.__name__] = fn
+    return fn
+
+# Minibuffer Input primitives
+
+def read_integer(prompt, default=''):
+    while True:
+        try:
+            return int(read_string(prompt, default=default))
+        except ValueError:
+            pass
+
+
+def read_string(prompt, default='', complete_fn=None):
+    return runloop_enter(lambda: activate_minibuffer('%s: ' % prompt,
+                                                     lambda b: runloop_result(b),
+                                                     default,
+                                                     complete_fn))
+
+
+@global_key('M-x')
+@interactive(lambda: read_string('Command'))
+def exec_command(command):
+    return run_interactive(globals()[command])
 
 
 def has_run(fn):
@@ -195,7 +208,9 @@ def switch_buffer(buffer_object):
 
 @global_key('C-x C-k')
 def kill_current_buffer():
-    """Kill the current buffer."""
+    """
+    Kill the current buffer.
+    """
     kill_buffer_object(current_buffer())
 
 # Windows

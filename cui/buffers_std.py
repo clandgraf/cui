@@ -103,7 +103,7 @@ class EvalBuffer(buffers.ConsoleBuffer):
 
     def on_send_current_buffer(self, b):
         code_object = compile(b, '<string>', 'eval')
-        result = eval(code_object, cui.__dict__)
+        result = eval(code_object, cui.api.__dict__)
         self.extend(str(result))
 
 

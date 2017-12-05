@@ -126,14 +126,13 @@ class WithKeymap(object, metaclass=WithKeymapMeta):
         key_fn = self._keymap[keychords]
         if key_fn is None:
             # keychord prefix is undefined in this keymap
-            return None
+            return False
         elif isinstance(key_fn, dict):
             # Incomplete keychord
-            return False
+            return True
         else:
             # keychord is handled
-            key_fn()
-            return True
+            return key_fn
 
     def handle_input(self, keychords):
         """Handling input from cui.input.
@@ -143,11 +142,11 @@ class WithKeymap(object, metaclass=WithKeymapMeta):
         not yet complete.
         If this method returns True, the associated method has been executed.
         """
-        is_keychord_handled = None
+        is_keychord_handled = False
         delegate = self.input_delegate()
         if delegate:
             is_keychord_handled = delegate.handle_input(keychords)
-        if is_keychord_handled is None:
+        if is_keychord_handled is False:
             is_keychord_handled = self._handle_input(keychords)
 
         return is_keychord_handled

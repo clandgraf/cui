@@ -3,9 +3,27 @@
 TODO
 ====
 
- --> buffer_keys functions should get added to cui.api
+ --> Let interactive runloops stack in minibuffer-window
 
- --> Interactive Commands with input from minibuffer
+       ...
+       minibuffer-rl1
+       minibuffer-rl0
+       echo-area
+
+ --> If cui.api is dynamically extended, this is not reflected in cui
+     which should contain api-calls
+
+
+ --> with_keymap.handle_input should return function.
+     core must call run_interactive(fn) on dispatch_input
+
+     --> @interactive exec_command is then possible too
+
+     --> Interactive Commands with input from minibuffer
+
+
+
+ --> buffer_keys functions should get added to cui.api
 
  --> @update_func currently not used
      -> either remove or implement via threading

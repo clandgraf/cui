@@ -506,6 +506,9 @@ def next_history_item(buf):
     if buf.history_index != -1:
         buf.activate_history_item(buf.history_index + 1)
 
+@with_current_buffer
+def complete_input(buf):
+    buf.auto_complete()
 
 class InputBuffer(WithKeymap):
     """
@@ -521,6 +524,7 @@ class InputBuffer(WithKeymap):
         '<right>': next_char,
         '<up>':    previous_history_item,
         '<down>':  next_history_item,
+        '<tab>':   complete_input,
     }
 
     def __init__(self, *args, **kwargs):
@@ -528,12 +532,13 @@ class InputBuffer(WithKeymap):
         self._bhistory = []
         self._bhistory_index = -1
         self._saved_buffer = ''
-        self._buffer = ''
-        self._cursor = 0
 
     @property
     def takes_input(self):
         return True
+
+    def buffer(self):
+        return self._buffer
 
     def insert_chars(self, string):
         self._buffer = self._buffer[:self._cursor] + string + self._buffer[self._cursor:]
@@ -580,9 +585,6 @@ class InputBuffer(WithKeymap):
             return True
         return False
 
-    def buffer(self):
-        return self._buffer
-
     def buffer_line(self, cursor):
         bstring = self._buffer + ' '
         return [str(self._bhistory_index) if self._bhistory_index != -1 else '', self.prompt,
@@ -606,6 +608,16 @@ class InputBuffer(WithKeymap):
     def on_send_current_buffer(self, b):
         pass
 
+    def auto_complete(self):
+        if self._cursor != len(self._buffer):
+            return
+
+        self._buffer = self.on_auto_complete()
+        self._cursor = len(self._buffer)
+
+    def on_auto_complete(self):
+        return self._buffer
+
 
 class ConsoleBuffer(InputBuffer, ScrollableBuffer):
     __keymap__ = {
@@ -615,6 +627,8 @@ class ConsoleBuffer(InputBuffer, ScrollableBuffer):
     def __init__(self, *args):
         super(ConsoleBuffer, self).__init__(*args)
         self._prompt = '> '
+        self._buffer = ''
+        self._cursor = 0
         self._chistory = []
         self._to_bottom = False
 
