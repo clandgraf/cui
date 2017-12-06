@@ -181,6 +181,7 @@ class RunloopState(object):
     def __init__(self):
         self.running = False
         self.current_keychord = []
+        self.on_exit = []
         self.mini_buffer_state = None
 
 
@@ -479,7 +480,7 @@ class Core(WithKeymap,
                 cui.exception()
                 rl.current_keychord = []
 
-    def activate_minibuffer(self, prompt, submit_fn, default='', complete_fn=None):
+    def activate_minibuffer(self, prompt, submit_fn, default='', complete_fn=None, exit_fn=None):
         self._runloops[0].mini_buffer_state = {
             'prompt': prompt,
             'buffer': '',
@@ -487,6 +488,8 @@ class Core(WithKeymap,
             'submit_function': submit_fn,
             'complete_function': complete_fn,
         }
+        if exit_fn:
+            self._runloops[0].on_exit.append(exit_fn)
         self.mini_buffer.reset_buffer(default)
 
     def set_interactive(self, interactive):
@@ -514,8 +517,13 @@ class Core(WithKeymap,
             self.message('Cancelled.')
         finally:
             self.io_selector.invalidate()
+            while self._runloops[0].on_exit:
+                self._runloops[0].on_exit.pop(0)()
             self._runloops.pop(0)
         return result
+
+    def runloop_level(self):
+        return len(self._runloops)
 
     def run(self):
         self.buffers.append(self.get_variable(['default-buffer-class'])())

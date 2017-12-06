@@ -25,7 +25,6 @@ import itertools
 import cui
 
 from cui import symbols
-from cui import api
 from cui.keymap import WithKeymap
 from cui.util import get_base_classes, deep_get, deep_put, minmax
 
@@ -507,7 +506,18 @@ def next_history_item(buf):
         buf.activate_history_item(buf.history_index + 1)
 
 @with_current_buffer
+def delete_to_eol(buf):
+    """
+    Delete text from the cursor to the end of the line
+    """
+    buf.delete_chars(len(buf.buffer()) - buf.cursor)
+
+@with_current_buffer
 def complete_input(buf):
+    """
+    Invoke the complete-function associated with the buffer
+    and replace the buffer-contents with the result.
+    """
     buf.auto_complete()
 
 class InputBuffer(WithKeymap):
@@ -520,6 +530,7 @@ class InputBuffer(WithKeymap):
         'C-e':     last_char,
         'C-?':     delete_previous_char,
         '<del>':   delete_next_char,
+        'C-k':     delete_to_eol,
         '<left>':  previous_char,
         '<right>': next_char,
         '<up>':    previous_history_item,

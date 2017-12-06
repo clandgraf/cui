@@ -14,6 +14,7 @@ from cui.core import \
 from cui.colors import ColorException
 from cui.util import add_to_sys_path
 
+
 with core_api_ns(globals()) as core_api:
     core_api('message')
     core_api('exception')
@@ -24,6 +25,7 @@ with core_api_ns(globals()) as core_api:
     core_api('running')
     core_api('bye',                    'C-x C-c')
     core_api('runloop_enter')
+    core_api('runloop_level')
     core_api('activate_minibuffer')
 
     core_api('def_variable')
@@ -105,7 +107,8 @@ def read_string(prompt, default='', complete_fn=None):
     return runloop_enter(lambda: activate_minibuffer('%s: ' % prompt,
                                                      lambda b: runloop_result(b),
                                                      default,
-                                                     complete_fn))
+                                                     complete_fn(display_completions),
+                                                     close_completions))
 
 
 @global_key('M-x')
@@ -300,3 +303,24 @@ def kill_buffer(buffer_class, *args):
     """
     exec_if_buffer_exists(lambda b: kill_buffer_object(b),
                           buffer_class, *args)
+
+
+def display_completions(completions):
+    """
+    Displays the set of possible completions in a
+    buffer that is displayed in the currently selected window.
+
+    :param completions: The list of possible completion strings.
+    """
+    from cui import buffers_std
+    exec_in_buffer_visible(lambda b: b.set_completions(completions),
+                           buffers_std.CompletionsBuffer,
+                           runloop_level(),
+                           split_method=None)
+
+def close_completions():
+    """
+    """
+    from cui import buffers_std
+    kill_buffer(buffers_std.CompletionsBuffer,
+                runloop_level())

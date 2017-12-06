@@ -124,3 +124,24 @@ class LogBuffer(buffers.ListBuffer):
 
     def render_item(self, window, item, index):
         return item.split('\n', self._item_height)[:self._item_height]
+
+
+class CompletionsBuffer(buffers.ListBuffer):
+    """
+    Displays the available completions
+    """
+
+    @classmethod
+    def name(cls, runloop_id):
+        return "Completions <rl%s>" % runloop_id
+
+    def __init__(self, runloop_id):
+        super(CompletionsBuffer, self).__init__(runloop_id)
+        self._id = runloop_id
+        self._completions = []
+
+    def set_completions(self, completions):
+        self._completions = completions
+
+    def items(self):
+        return self._completions

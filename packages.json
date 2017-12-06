@@ -1,14 +1,14 @@
 [
     {
-	"name": "cui_emacs",
-	"path": "git+https://github.com/clandgraf/cui_emacs"
+	    "name": "cui_emacs",
+	    "path": "git+https://github.com/clandgraf/cui_emacs"
     },
     {
-	"name": "cui_pydevd",
-	"path": "git+https://github.com/clandgraf/cui_pydevd"
+	    "name": "cui_pydevd",
+	    "path": "git+https://github.com/clandgraf/cui_pydevd"
     },
     {
-	"name": "cui_source",
-	"path": "git+https://github.com/clandgraf/cui_source"
+	    "name": "cui_source",
+	    "path": "git+https://github.com/clandgraf/cui_source"
     }
 ]
