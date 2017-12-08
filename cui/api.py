@@ -305,7 +305,7 @@ def kill_buffer(buffer_class, *args):
                           buffer_class, *args)
 
 
-def display_completions(completions):
+def display_completions(completion_id, completions):
     """
     Displays the set of possible completions in a
     buffer that is displayed in the currently selected window.
@@ -315,12 +315,13 @@ def display_completions(completions):
     from cui import buffers_std
     exec_in_buffer_visible(lambda b: b.set_completions(completions),
                            buffers_std.CompletionsBuffer,
-                           runloop_level(),
+                           completion_id,
                            split_method=None)
 
-def close_completions():
+
+def close_completions(completion_id):
     """
     """
     from cui import buffers_std
     kill_buffer(buffers_std.CompletionsBuffer,
-                runloop_level())
+                completion_id)

@@ -119,9 +119,6 @@ def echo_area_default():
             '%s/%s' % (c._frame._wm.window_set_index + 1, c._frame._wm.window_set_count))
 
 
-def complete_mini_buffer():
-    core.Core().current_buffer()
-
 class MiniBuffer(buffers.InputBuffer):
     def __init__(self, core):
         super(MiniBuffer, self).__init__()
@@ -481,15 +478,21 @@ class Core(WithKeymap,
                 rl.current_keychord = []
 
     def activate_minibuffer(self, prompt, submit_fn, default='', complete_fn=None, exit_fn=None):
+        mini_buffer_id = ('minibuffer-%s'
+                          % len(list(filter(lambda rl: rl.mini_buffer_state is not None,
+                                            self._runloops))))
+        _complete_fn = None if complete_fn is None else functools.partial(complete_fn, mini_buffer_id)
+        _exit_fn = None if exit_fn is None else functools.partial(exit_fn, mini_buffer_id)
         self._runloops[0].mini_buffer_state = {
+            'id': mini_buffer_id,
             'prompt': prompt,
             'buffer': '',
             'cursor': 0,
             'submit_function': submit_fn,
-            'complete_function': complete_fn,
+            'complete_function': _complete_fn,
         }
         if exit_fn:
-            self._runloops[0].on_exit.append(exit_fn)
+            self._runloops[0].on_exit.append(_exit_fn)
         self.mini_buffer.reset_buffer(default)
 
     def set_interactive(self, interactive):
