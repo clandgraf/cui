@@ -5,6 +5,7 @@
 import atexit
 import contextlib
 import functools
+import itertools
 import math
 import signal
 import sys
@@ -153,10 +154,25 @@ class MiniBuffer(buffers.InputBuffer):
         if self._core.mini_buffer_state:
             self._core.mini_buffer_state.get('submit_function', lambda _: None)(b)
 
-    def get_lines(self):
+    def get_input_lines(self):
         for i, s in enumerate(self._core.mini_buffer_states):
-            yield self.get_buffer_line(s['prompt'], s['buffer'], s['cursor'], show_cursor=(i == 0))
+            yield self.get_buffer_line(s['prompt'],
+                                       s['buffer'],
+                                       s['cursor'],
+                                       show_cursor=(i == 0))
 
+    def get_echo_area(self, window):
+        left, right = self._core.echo_area
+        left = left.split('\n', 1)[0]
+        right = right.split('\n', 1)[0]
+        space = (window.columns - len(left) - len(right))
+        if space < 0:
+            left = left[:(space - 4)] + '... '
+        return [left, ' ' * max(0, space), right]
+
+    def get_lines(self, window):
+        yield from itertools.islice(self.get_input_lines(), window.rows - 1)
+        yield self.get_echo_area(window)
 
 # Runloop Control
 
@@ -446,6 +462,9 @@ class Core(WithKeymap,
         return self.get_variable(['echo-area'])()
 
     def bye(self):
+        """
+        Exit cui.
+        """
         raise RunloopExit()
 
     def input_delegate(self):

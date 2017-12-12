@@ -93,6 +93,18 @@ def api_fn(fn):
     globals()[fn.__name__] = fn
     return fn
 
+
+def buffer_keys(keychord, name=None):
+    def _buffer_keys(class_):
+        def switch_to_buffer():
+            switch_buffer(class_)
+        if name:
+            switch_to_buffer.__name__ = name
+        switch_to_buffer.__doc__ = '\nSwitch to buffer %s\n' % class_.__name__
+        api_fn(set_global_key(keychord, switch_to_buffer))
+        return class_
+    return _buffer_keys
+
 # Minibuffer Input primitives
 
 def read_integer(prompt, default=''):
@@ -119,8 +131,22 @@ def exec_command(command):
     return run_interactive(globals()[command])
 
 
+@global_key('M-e')
+@interactive(lambda: read_string('Eval'))
+def eval_python(code_string):
+    """
+    Evaluate Python expression ``code_string``
+    in the context of cui.
+    """
+    code_object = compile(code_string, '<string>', 'eval')
+    return eval(code_object, globals())
+
+
 def has_run(fn):
-    """Determine if an init_func or a post_init_func has been successfully executed."""
+    """
+    Determine if an init_func or a post_init_func
+    has been successfully executed.
+    """
     return getattr(fn, '__has_run__')
 
 # Input Waitables

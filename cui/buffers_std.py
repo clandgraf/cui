@@ -2,8 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import cui
-
+from cui import api
 from cui import buffers
 from cui import core
 
@@ -13,7 +12,7 @@ def display_help(buffer_object):
     """
     Display a help buffer
     """
-    return cui.buffer_visible(HelpBuffer, buffer_object.__class__, to_window=True)
+    return api.buffer_visible(HelpBuffer, buffer_object.__class__, to_window=True)
 
 
 class HelpBuffer(buffers.ScrollableBuffer):
@@ -76,7 +75,7 @@ class HelpBuffer(buffers.ScrollableBuffer):
         yield from iter(self._lines[window._state['first-row']:])
 
 
-@buffers.buffer_keys('C-x C-b', 'list_buffers')
+@api.buffer_keys('C-x C-b', 'list_buffers')
 class BufferListBuffer(buffers.ListBuffer):
     @classmethod
     def name(cls, *args):
@@ -92,7 +91,7 @@ class BufferListBuffer(buffers.ListBuffer):
         return [item.buffer_name()]
 
 
-@buffers.buffer_keys('C-x C-e', 'eval_python')
+@api.buffer_keys('C-x C-e', 'show_eval_python')
 class EvalBuffer(buffers.ConsoleBuffer):
     """
     Evaluate Python expressions in the context of cui.
@@ -102,12 +101,10 @@ class EvalBuffer(buffers.ConsoleBuffer):
         return 'cui-eval'
 
     def on_send_current_buffer(self, b):
-        code_object = compile(b, '<string>', 'eval')
-        result = eval(code_object, cui.api.__dict__)
-        self.extend(str(result))
+        self.extend(str(api.eval_python(b)))
 
 
-@buffers.buffer_keys('C-x C-l', 'show_log')
+@api.buffer_keys('C-x C-l', 'show_log')
 class LogBuffer(buffers.ListBuffer):
     """
     Displays messages posted via cui.message or cui.exception.
@@ -133,7 +130,7 @@ class CompletionsBuffer(buffers.ListBuffer):
 
     @classmethod
     def name(cls, runloop_id):
-        return "Completions <rl%s>" % runloop_id
+        return "Completions <%s>" % runloop_id
 
     def __init__(self, runloop_id):
         super(CompletionsBuffer, self).__init__(runloop_id)

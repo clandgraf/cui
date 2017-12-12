@@ -67,18 +67,6 @@ def close_buffer():
     cui.delete_selected_window()
 
 
-def buffer_keys(keychord, name=None):
-    def _buffer_keys(class_):
-        def switch_to_buffer():
-            cui.switch_buffer(class_)
-        if name:
-            switch_to_buffer.__name__ = name
-        switch_to_buffer.__doc__ = 'Switch to buffer %s' % class_.__name__
-        cui.set_global_key(keychord, switch_to_buffer)
-        return class_
-    return _buffer_keys
-
-
 class Buffer(WithKeymap):
     """
     This is the base class for all buffers. Usually you want to

@@ -10,6 +10,21 @@ from cui import symbols
 
 
 class WindowBase(object):
+    """
+    The base class for all windows displayed in a frame.
+
+    This provides the ability to render lines to a portion of the screen.
+    It initializes a handle to a terminal window (see ``cui.term.Window``)
+    and manages its own dimension.
+
+    This class also implements the renderer for cui text in the functions
+    ``_render_line`` and ``_render_lines``.
+
+    Derived classes are ``MiniBufferWindow``, which displays active minibuffers
+    and the echo area at the bottom of the screen, as well as ``Window`` which
+    represents all other windows.
+    """
+
     def __init__(self, screen, dimensions):
         self._core = core.Core()
         self._init_dimensions(dimensions)
@@ -72,7 +87,7 @@ class WindowBase(object):
 
     def _render_lines(self, line_iterator):
         soft_tabs = ' ' * self._core.get_variable(['tab-stop'])
-        self._handle.move_cursor(0, 0)  # Required for empty buffer
+        self._handle.move_cursor(0, 0)  # Required for empty buffers
         for idx, row in itertools.islice(enumerate(line_iterator), self.rows):
             self._handle.move_cursor(idx, 0)
             _col = self._render_line(row, soft_tabs, idx)
@@ -96,9 +111,6 @@ class MiniBufferWindow(WindowBase):
              0))
         self._screen = screen
 
-    def buffer(self):
-        return self._mini_buffer
-
     def get_content_dimensions(self, dim):
         return (dim[0], dim[1] - 1, dim[2], dim[3])
 
@@ -106,21 +118,8 @@ class MiniBufferWindow(WindowBase):
         max_y, max_x = self._screen.get_dimensions()
         self._update_dimensions((minibuffer_height, max_x, max_y - minibuffer_height, 0))
 
-    def get_echo_area(self):
-        left, right = self._core.echo_area
-        left = left.split('\n', 1)[0]
-        right = right.split('\n', 1)[0]
-        space = (self.columns - len(left) - len(right))
-        if space < 0:
-            left = left[:(space - 4)] + '... '
-        return [left, ' ' * max(0, space), right]
-
-    def get_lines(self):
-        yield from itertools.islice(self._core._mini_buffer.get_lines(), self.rows - 1)
-        yield self.get_echo_area()
-
     def render(self):
-        self._render_lines(self.get_lines())
+        self._render_lines(self._core._mini_buffer.get_lines(self))
         self._handle.update()
 
 

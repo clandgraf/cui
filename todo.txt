@@ -5,10 +5,7 @@ TODO
 
  --> Let interactive runloops stack in minibuffer-window
 
-       ...
-       minibuffer-rl1
-       minibuffer-rl0
-       echo-area
+     Define a maximum of active minibuffers to be displayed in minibufferwindow
 
  --> If cui.api is dynamically extended, this is not reflected in cui
      which should contain api-calls
