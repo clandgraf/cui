@@ -145,13 +145,18 @@ class MiniBuffer(buffers.InputBuffer):
         return self._core.mini_buffer_state.get('prompt', '')
 
     def on_auto_complete(self):
-        if 'complete_function' not in self._core.mini_buffer_state:
+        if self._core.mini_buffer_state['complete_function'] is None:
             return super(MiniBuffer, self).on_auto_complete()
         return self._core.mini_buffer_state['complete_function'](self._buffer)
 
     def on_send_current_buffer(self, b):
         if self._core.mini_buffer_state:
             self._core.mini_buffer_state.get('submit_function', lambda _: None)(b)
+
+    def get_lines(self):
+        for i, s in enumerate(self._core.mini_buffer_states):
+            yield self.get_buffer_line(s['prompt'], s['buffer'], s['cursor'], show_cursor=(i == 0))
+
 
 # Runloop Control
 
@@ -313,6 +318,12 @@ class Core(WithKeymap,
     @property
     def mini_buffer_state(self):
         return self._runloops[0].mini_buffer_state
+
+    @property
+    def mini_buffer_states(self):
+        return filter(lambda s: s is not None,
+                      map(lambda rl: rl.mini_buffer_state,
+                          self._runloops))
 
     def create_buffer(self, buffer_class, *args):
         buffer_object = self.get_buffer(buffer_class, *args)
@@ -476,6 +487,11 @@ class Core(WithKeymap,
             except:
                 cui.exception()
                 rl.current_keychord = []
+
+    @property
+    def minibuffer_height(self):
+        return len(list(filter(lambda rl: rl.mini_buffer_state is not None,
+                               self._runloops))) + 1
 
     def activate_minibuffer(self, prompt, submit_fn, default='', complete_fn=None, exit_fn=None):
         mini_buffer_id = ('minibuffer-%s'

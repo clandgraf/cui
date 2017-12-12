@@ -178,7 +178,7 @@ class Frame(term.Frame):
         curses_keyreader.read_keychord(self._screen, receive_input=False)
         curses_keyreader.read_keychord(self._screen, receive_input=False)
 
-        self._wm.resize()
+        super(Frame, self).resize()
 
     # ------------ Colors: Compute pair indices ------------
 

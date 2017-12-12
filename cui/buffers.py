@@ -596,16 +596,23 @@ class InputBuffer(WithKeymap):
             return True
         return False
 
+    @classmethod
+    def get_buffer_line(self, prompt, buffer, cursor, show_cursor=False):
+        bstring = buffer + ' '
+        return [prompt, [
+            bstring[:cursor],
+            {'content': bstring[cursor],
+             'foreground': 'special',
+             'background': 'special'},
+            bstring[cursor + 1:]
+        ] if show_cursor else buffer]
+
     def buffer_line(self, cursor):
         bstring = self._buffer + ' '
-        return [str(self._bhistory_index) if self._bhistory_index != -1 else '', self.prompt,
-                [bstring[:self._cursor],
-                 {'content': bstring[self._cursor],
-                  'foreground': 'special',
-                  'background': 'special'},
-                 bstring[self._cursor + 1:]] \
-                if cursor else \
-                self._buffer]
+        return [
+            str(self._bhistory_index) if self._bhistory_index != -1 else '',
+            *InputBuffer.get_buffer_line(self.prompt, self._buffer, self._cursor, show_cursor=cursor)
+        ]
 
     def send_current_buffer(self):
         self._bhistory.append(self._buffer)

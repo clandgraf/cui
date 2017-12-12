@@ -104,11 +104,13 @@ def read_integer(prompt, default=''):
 
 
 def read_string(prompt, default='', complete_fn=None):
-    return runloop_enter(lambda: activate_minibuffer('%s: ' % prompt,
-                                                     lambda b: runloop_result(b),
-                                                     default,
-                                                     complete_fn(display_completions),
-                                                     close_completions))
+    return runloop_enter(lambda: activate_minibuffer(
+        '%s: ' % prompt,
+        lambda b: runloop_result(b),
+        default,
+        complete_fn(display_completions) if complete_fn else None,
+        close_completions
+    ))
 
 
 @global_key('M-x')

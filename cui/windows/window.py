@@ -70,12 +70,30 @@ class WindowBase(object):
                                      new_foreground, new_background, new_attributes)
         return _col
 
+    def _render_lines(self, line_iterator):
+        soft_tabs = ' ' * self._core.get_variable(['tab-stop'])
+        self._handle.move_cursor(0, 0)  # Required for empty buffer
+        for idx, row in itertools.islice(enumerate(line_iterator), self.rows):
+            self._handle.move_cursor(idx, 0)
+            _col = self._render_line(row, soft_tabs, idx)
+            # Clear with background color (e.g. selection)
+            if isinstance(row, dict) and 'background' in row:
+                rest = self.columns - _col
+                if rest > 0:
+                    self._add_string(idx, _col, rest * ' ', 'default', row['background'])
+            else:
+                self._handle.clear_line()
+        self._handle.clear_all()
+
 
 class MiniBufferWindow(WindowBase):
-    def __init__(self, screen):
+    def __init__(self, screen, minibuffer_height):
         super(MiniBufferWindow, self).__init__(
             screen,
-            (1, screen.get_dimensions()[1], screen.get_dimensions()[0] - 1, 0))
+            (minibuffer_height,
+             screen.get_dimensions()[1],
+             screen.get_dimensions()[0] - minibuffer_height,
+             0))
         self._screen = screen
 
     def buffer(self):
@@ -84,27 +102,25 @@ class MiniBufferWindow(WindowBase):
     def get_content_dimensions(self, dim):
         return (dim[0], dim[1] - 1, dim[2], dim[3])
 
-    def resize(self):
+    def resize(self, minibuffer_height):
         max_y, max_x = self._screen.get_dimensions()
-        self._update_dimensions((1, max_x, max_y - 1, 0))
+        self._update_dimensions((minibuffer_height, max_x, max_y - minibuffer_height, 0))
 
-    def get_line(self):
-        if self._core.mini_buffer_state:
-            return self._core._mini_buffer.buffer_line(cursor=True)
-
+    def get_echo_area(self):
         left, right = self._core.echo_area
         left = left.split('\n', 1)[0]
         right = right.split('\n', 1)[0]
-        space = (self.dimensions[1] - len(left) - len(right))
+        space = (self.columns - len(left) - len(right))
         if space < 0:
             left = left[:(space - 4)] + '... '
         return [left, ' ' * max(0, space), right]
 
+    def get_lines(self):
+        yield from itertools.islice(self._core._mini_buffer.get_lines(), self.rows - 1)
+        yield self.get_echo_area()
+
     def render(self):
-        self._render_line(self.get_line(),
-                          ' ' * self._core.get_variable(['tab-stop']),
-                          0)
-        self._handle.clear_line()
+        self._render_lines(self.get_lines())
         self._handle.update()
 
 
@@ -142,20 +158,7 @@ class Window(WindowBase):
 
     def _render_buffer(self):
         self._buffer.on_pre_render()
-        soft_tabs = ' ' * self._core.get_variable(['tab-stop'])
-        self._handle.move_cursor(0, 0)
-        for idx, row in itertools.islice(enumerate(self._buffer.get_lines(self)),
-                                          self.dimensions[0]):
-            self._handle.move_cursor(idx, 0)
-            _col = self._render_line(row, soft_tabs, idx)
-            # Clear with background color
-            if isinstance(row, dict):
-                rest = self.dimensions[1] - _col
-                if rest > 0:
-                    self._add_string(idx, _col, rest * ' ', 'default', row.get('background'))
-            else:
-                self._handle.clear_line()
-        self._handle.clear_all()
+        self._render_lines(self._buffer.get_lines(self))
 
     def render(self, is_active):
         self._render_buffer()

@@ -15,16 +15,17 @@ MIN_WINDOW_WIDTH  = 20
 
 
 class WindowSet(object):
-    def __init__(self, screen):
+    def __init__(self, screen, minibuffer_height):
         self._core = core.Core()
         self._screen = screen
+        self._minibuffer_height = minibuffer_height
         self._windows = {}
-        self._root = self._init_root()
+        self._init_root()
         self.select_window(self._root['content'])
 
     def _root_dimensions(self):
         max_y, max_x = self._screen.get_dimensions()
-        return (max_y - 1, max_x, 0, 0)
+        return (max_y - self._minibuffer_height, max_x, 0, 0)
 
     def _init_root(self):
         dim = self._root_dimensions()
@@ -35,9 +36,11 @@ class WindowSet(object):
             'content':    w,
             'parent':     None
         }
-        return self._windows[id(w)]
+        self._root = self._windows[id(w)]
 
-    def resize(self):
+    def resize(self, minibuffer_height=None):
+        if minibuffer_height:
+            self._minibuffer_height = minibuffer_height
         self._root['dimensions'] = self._root_dimensions()
         self._resize_window_tree(self._root)
 

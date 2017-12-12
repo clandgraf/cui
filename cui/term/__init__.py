@@ -47,7 +47,7 @@ class Frame(object):
     def __init__(self, core):
         self._core = core
         self.initialize()
-        self._wm = WindowManager(self)
+        self._wm = WindowManager(self, self._core.minibuffer_height)
 
     def initialize(self):
         pass
@@ -55,8 +55,11 @@ class Frame(object):
     def close(self):
         pass
 
+    def resize(self):
+        self._wm.resize(self._core.minibuffer_height)
+
     def render(self):
-        self._wm.render()
+        self._wm.render(self._core.minibuffer_height)
 
     def set_color(self, name, r, g, b):
         pass

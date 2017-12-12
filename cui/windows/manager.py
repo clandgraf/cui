@@ -24,12 +24,13 @@ from cui.windows.window_set import WindowSet
           'delete_all_windows'],
          WindowSet)
 class WindowManager(object):
-    def __init__(self, screen):
+    def __init__(self, screen, minibuffer_height):
         self._screen = screen
-        self._window_sets = [WindowSet(screen)]
+        self._window_sets = [WindowSet(screen, minibuffer_height)]
+        self._minibuffer_height = minibuffer_height
         self._named_window_sets = {}
         self._active_window_set = 0
-        self._mini_buffer_win = MiniBufferWindow(self._screen)
+        self._mini_buffer_win = MiniBufferWindow(self._screen, minibuffer_height)
 
     @property
     def window_set_index(self):
@@ -55,7 +56,7 @@ class WindowManager(object):
             return self._window_sets[self._named_window_sets[name]]
 
         idx = self._active_window_set + 1
-        ws = WindowSet(self._screen)
+        ws = WindowSet(self._screen, self._minibuffer_height)
         self._window_sets.insert(idx, ws)
         if name:
             self._named_window_sets[name] = idx
@@ -104,12 +105,15 @@ class WindowManager(object):
         self._active_window_set += len(self._window_sets) - 1
         self._active_window_set %= len(self._window_sets)
 
-    def resize(self):
-        self._mini_buffer_win.resize()
+    def resize(self, minibuffer_height):
+        self._minibuffer_height = minibuffer_height
+        self._mini_buffer_win.resize(minibuffer_height)
         for ws in self._window_sets:
-            ws.resize()
+            ws.resize(minibuffer_height)
 
-    def render(self):
+    def render(self, minibuffer_height):
+        if self._minibuffer_height != minibuffer_height:
+            self.resize(minibuffer_height)
         self.active_window_set().render()
         self._mini_buffer_win.render()
 
