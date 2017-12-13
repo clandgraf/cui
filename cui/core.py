@@ -379,11 +379,15 @@ class Core(WithKeymap,
         if len(self.buffers) == 0:  # Ensure we always have a buffer available
             cui.switch_buffer(self.get_variable('default-buffer-class'))
 
-    def current_buffer(self):
+    def current_buffer(self, no_minibuffer=False):
         """
         Return the buffer in the selected window.
+        :param no_minibuffer: Set to ``True`` if minibuffer should be excluded.
         """
-        return self._mini_buffer if self.mini_buffer_state else self.selected_window().buffer()
+        return \
+            self._mini_buffer \
+            if self.mini_buffer_state and not no_minibuffer else \
+            self.selected_window().buffer()
 
     def get_variable(self, path):
         return deep_get(self._state, path, return_none=False)

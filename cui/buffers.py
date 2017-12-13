@@ -99,8 +99,11 @@ class Buffer(WithKeymap):
             if selected_window:
                 selected_window.update_state(path[1:], value)
 
-    def get_variable(self, path):
-        return deep_get(self._state, path, return_none=False)
+    def get_variable(self, path, default=None):
+        result = deep_get(self._state, path, return_none=(default is not None))
+        if result is None:
+            return default
+        return result
 
     # --------------- Override these ------------
 

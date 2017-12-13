@@ -1,6 +1,13 @@
 A Text UI Framework for Python
 ==============================
 
+To setup a checkout you need Python 3.6 and virtualenv. Then you may
+bootstrap a development setup by issuing:
+
+.. code-block:: shell
+
+   python3 checkout.py
+
 See also:
 
 - `cui-source <https://github.com/clandgraf/cui_source>`_: Displays
