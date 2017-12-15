@@ -60,6 +60,10 @@ with core_api_ns(globals()) as core_api:
     core_api('delete_all_windows',     'C-x 1')
     core_api('delete_selected_window', 'C-x 0')
 
+    core_api('get_colors')
+    core_api('get_backgrounds')
+    core_api('get_foregrounds')
+
 
 def base_directory(rel_path):
     return os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')),
@@ -107,6 +111,21 @@ def buffer_keys(keychord, name=None):
 
 # Minibuffer Input primitives
 
+def complete_from_list(list_function):
+    def _complete_from_list(display_completions):
+        def __complete_from_list(completion_id, buffer_content):
+            matches = list(filter(lambda m: m.startswith(buffer_content), list_function()))
+            prefix = os.path.commonprefix(matches)
+            if len(matches) == 0:
+                cui.message('No completions.')
+                return buffer_content
+            elif len(matches) > 1:
+                display_completions(completion_id, matches)
+            return prefix
+        return __complete_from_list
+    return _complete_from_list
+
+
 def read_integer(prompt, default=''):
     while True:
         try:
@@ -126,9 +145,13 @@ def read_string(prompt, default='', complete_fn=None):
 
 
 @global_key('M-x')
-@interactive(lambda: read_string('Command'))
+@interactive(lambda: read_string('Command',
+                                 complete_fn=complete_from_list(lambda: globals().keys())))
 def exec_command(command):
-    return run_interactive(globals()[command])
+    result = run_interactive(globals()[command])
+    if result:
+        message(str(result))
+    return result
 
 
 @global_key('M-e')
@@ -177,6 +200,9 @@ def run_hook(path, *args, **kwargs):
 
 # Colors
 
+@interactive(lambda: read_string('Color name',
+                                 complete_fn=complete_from_list(get_colors)),
+             lambda: read_string('Color (hex string)'))
 def def_colors(name, string):
     """
     Define a new color or redefine an existing color.
@@ -192,6 +218,17 @@ def def_colors(name, string):
     except ColorException as e:
         message('%s' % e)
 
+
+@interactive(lambda: read_string('Background type',
+                                 complete_fn=complete_from_list(get_backgrounds)))
+def get_background(bg_type):
+    return Core().get_background_color(bg_type)
+
+
+@interactive(lambda: read_string('Background type',
+                                 complete_fn=complete_from_list(get_backgrounds)),
+             lambda: read_string('Color name',
+                                 complete_fn=complete_from_list(get_colors)))
 def def_background(bg_type, color_name):
     """
     Redefine an existing background definition.
@@ -205,6 +242,17 @@ def def_background(bg_type, color_name):
     except ColorException as e:
         message('%s' % e)
 
+
+@interactive(lambda: read_string('Foreground type',
+                                 complete_fn=complete_from_list(get_foregrounds)))
+def get_foreground(fg_type):
+    return Core().get_foreground_color(fg_type)
+
+
+@interactive(lambda: read_string('Foreground type',
+                                 complete_fn=complete_from_list(get_foregrounds)),
+             lambda: read_string('Color name',
+                                 complete_fn=complete_from_list(get_colors)))
 def def_foreground(fg_type, color_name):
     try:
         return Core().def_foreground(fg_type, color_name)

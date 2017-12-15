@@ -3,6 +3,9 @@
 TODO
 ====
 
+ --> def_variable(['cwd']) for all buffers, remove stupid default case handling for
+     get_variable
+
  --> Let interactive runloops stack in minibuffer-window
 
      Define a maximum of active minibuffers to be displayed in minibufferwindow

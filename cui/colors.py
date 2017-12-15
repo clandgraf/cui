@@ -126,6 +126,9 @@ class ColorCore(object):
     def get_foreground_color(self, fg_type, compat=False):
         return (FGCOL_MAP_COMPAT if compat else FGCOL_MAP).get(fg_type)
 
+    def get_foregrounds(self):
+        return FGCOL_MAP.keys()
+
     def get_background_color(self, bg_type, compat=False):
         return (BGCOL_MAP_COMPAT if compat else BGCOL_MAP)[bg_type]
 
