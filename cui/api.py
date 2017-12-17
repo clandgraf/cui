@@ -109,7 +109,7 @@ def buffer_keys(keychord, name=None):
         return class_
     return _buffer_keys
 
-# Minibuffer Input primitives
+# =============== Minibuffer Input primitives ===================
 
 def complete_from_list(list_function):
     def _complete_from_list(display_completions):
@@ -148,6 +148,16 @@ def read_string(prompt, default='', complete_fn=None):
 @interactive(lambda: read_string('Command',
                                  complete_fn=complete_from_list(lambda: globals().keys())))
 def exec_command(command):
+    """
+    Execute a command a command interactively.
+
+    The command must be a callable defined in the ``cui.api`` namespace that
+    either takes no parameters or is wrapped with the interactive decorator.
+    To make a function available to ``exec_command`` you may use the api_fn
+    decorator.
+
+    :param command: The command to be executed.
+    """
     result = run_interactive(globals()[command])
     if result:
         message(str(result))
@@ -159,7 +169,9 @@ def exec_command(command):
 def eval_python(code_string):
     """
     Evaluate Python expression ``code_string``
-    in the context of cui.
+    in the context of ``cui.api``.
+
+    :param code_string: A string containing a python expression
     """
     code_object = compile(code_string, '<string>', 'eval')
     return eval(code_object, globals())
@@ -172,13 +184,54 @@ def has_run(fn):
     """
     return getattr(fn, '__has_run__')
 
-# Input Waitables
+# ==================== Event handling =======================
 
 def register_waitable(waitable, handler):
+    """
+    Register object waitable to the cui event-loop.
+    If input is available function handler will be executed,
+    with the waitable as argument.
+
+    :param waitable: The waitable object to be registered
+    :param handler: A handler function that will be invoked,
+                    when input is available on waitable
+    """
     return Core().io_selector.register(waitable, handler)
 
 def unregister_waitable(waitable):
+    """
+    Unregister the waitable object ``waitable``, which has
+    previously been registered by a call to ``register_waitable``.
+
+    :param waitable: The waitable object to be unregistered
+    """
     return Core().io_selector.unregister(waitable)
+
+def register_async_event(name, handler):
+    """
+    Introduces a new event type identified by ``name`` for
+    asynchronuous events to the cui event-loop. The provided
+    ``handler`` will be invoked, if ``post_async_event`` is
+    called with ``name`` as parameter.
+
+    This function is typically used to handle the results of
+    asynchronuous processes, such as signals or threads, in
+    the cui event-loop.
+
+    :param name: A string that is used as an identifier for
+                 the event type.
+    :param handler: The handler function for the event type.
+    """
+    return Core().io_selector.register_async(name, handler)
+
+def unregister_async_event(name):
+    return Core().io_selector.unregister_async(name)
+
+def post_async_event(name):
+    """
+    Invoke the asynchronuous event handler identified by ``name``.
+    """
+    return Core().io_selector.post_async_event(name)
 
 # Hooks
 
@@ -234,8 +287,13 @@ def def_background(bg_type, color_name):
     Redefine an existing background definition.
 
     The name should correspond to a color definition previously
-    defined with ``def_colors``.
+    defined with ``def_colors``. To get a list of available
+    background types, the function ``get_backgrounds`` may be used.
+    To get a list of defined color names, use the function
+    ``get_colors``.
 
+    :param bg_type: One of the background types in ``get_backgrounds``.
+    :param color_name: One of the color names defined with ``def_colors``.
     """
     try:
         return Core().def_background(bg_type, color_name)
