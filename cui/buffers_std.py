@@ -2,6 +2,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import json
+
 from cui import api
 from cui import buffers
 from cui import core
@@ -142,3 +144,22 @@ class CompletionsBuffer(buffers.ListBuffer):
 
     def items(self):
         return self._completions
+
+
+class StaticBuffer(buffers.ListBuffer):
+    """
+    Display content serialized as JSON
+    """
+
+    @classmethod
+    def name(cls, json_file):
+        return "JSON: %s" % json_file
+
+    def __init__(self, json_file):
+        super(StaticBuffer, self).__init__(json_file)
+        with open(json_file, 'r') as json_fp:
+            self.rows = list(map(lambda r: [r],
+                                 json.load(json_fp)))
+
+    def items(self):
+        return self.rows

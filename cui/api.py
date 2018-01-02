@@ -109,6 +109,14 @@ def buffer_keys(keychord, name=None):
         return class_
     return _buffer_keys
 
+
+def has_run(fn):
+    """
+    Determine if an init_func or a post_init_func
+    has been successfully executed.
+    """
+    return getattr(fn, '__has_run__')
+
 # =============== Minibuffer Input primitives ===================
 
 def complete_from_list(list_function):
@@ -131,7 +139,19 @@ def read_integer(prompt, default=''):
         try:
             return int(read_string(prompt, default=default))
         except ValueError:
-            pass
+            message('Enter an integer.')
+
+
+def read_bool(prompt, default=False):
+    while True:
+        result = read_string('%s (yes/no)' % prompt,
+                             default=('yes' if default else 'no'))
+        if result == 'yes':
+            return True
+        elif result == 'no':
+            return False
+        else:
+            message('Enter yes or no.')
 
 
 def read_string(prompt, default='', complete_fn=None):
@@ -144,12 +164,58 @@ def read_string(prompt, default='', complete_fn=None):
     ))
 
 
+def complete_files(display_completions):
+    def _complete_files(completion_id, buffer_content):
+        basename = os.path.basename(buffer_content)
+        dirname = os.path.dirname(buffer_content)
+        matches = list(filter(lambda d: d.startswith(basename), os.listdir(dirname)))
+        prefix = os.path.commonprefix(matches)
+        result = os.path.join(dirname, prefix)
+        if len(matches) == 0:
+            message('No completions.')
+            return buffer_content
+        elif len(matches) == 1:
+            if os.path.isdir(result):
+                return os.path.join(result, '')
+        else:
+            display_completions(completion_id,
+                                list(map(lambda match: [os.path.join(dirname, ''),
+                                                        {'content': match,
+                                                         'attributes': ['bold']}],
+                                         matches)))
+        return result
+    return _complete_files
+
+
+def read_file(prompt, default=None):
+    """
+    Read a file from minibuffer.
+
+    If no ``default`` is provided, the ``cwd`` of the current buffer
+    will be used as default. If this yields no value, the systems
+    current working directory will be used.
+
+    :param prompt: Prompt to be displayed
+    :param default: If provided the default value of
+                    the minibuffer is set to this
+    """
+    f = os.path.join(default or current_buffer(no_minibuffer=True) \
+                     .get_variable(['cwd'], os.getcwd()),
+                     '')
+    while True:
+        f = read_string(prompt, f, complete_files)
+        if os.path.exists(f):
+            return f
+        message('File \'%s\' does not exist.' % f)
+
+# ==================== Execute functions =======================
+
 @global_key('M-x')
 @interactive(lambda: read_string('Command',
                                  complete_fn=complete_from_list(lambda: globals().keys())))
 def exec_command(command):
     """
-    Execute a command a command interactively.
+    Execute a command interactively.
 
     The command must be a callable defined in the ``cui.api`` namespace that
     either takes no parameters or is wrapped with the interactive decorator.
@@ -175,14 +241,6 @@ def eval_python(code_string):
     """
     code_object = compile(code_string, '<string>', 'eval')
     return eval(code_object, globals())
-
-
-def has_run(fn):
-    """
-    Determine if an init_func or a post_init_func
-    has been successfully executed.
-    """
-    return getattr(fn, '__has_run__')
 
 # ==================== Event handling =======================
 
@@ -318,6 +376,7 @@ def def_foreground(fg_type, color_name):
         message('%s' % e)
 
 # Buffers
+
 
 def with_created_buffer(fn):
     def _fn(buffer_class, *args, **kwargs):
@@ -459,3 +518,9 @@ def close_completions(completion_id):
     from cui import buffers_std
     kill_buffer(buffers_std.CompletionsBuffer,
                 completion_id)
+
+
+@interactive(lambda: read_file('JSON File'))
+def display_static(json_file):
+    from cui import buffers_std
+    switch_buffer(buffers_std.StaticBuffer, json_file)
