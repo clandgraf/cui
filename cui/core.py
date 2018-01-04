@@ -455,6 +455,9 @@ class Core(WithKeymap,
                              % (fn.__name__, traceback.format_exc()))
 
     def _update_ui(self):
+        # Reset on_pre_render-flag on all buffers
+        for buf in self.buffers:
+            buf.on_pre_render_called = False
         self._frame.render()
 
     @property

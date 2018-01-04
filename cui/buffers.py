@@ -122,6 +122,24 @@ class Buffer(WithKeymap):
         pass
 
     def on_pre_render(self):
+        """
+        This function will be called the first time a buffer is rendered
+        during updating the ui. This allows the buffer to do preparations for
+        rendering its lines which are independent of the window it is rendered
+        to, as a buffer may be displayed in multiple windows.
+
+        To do window-dependent preparations implement the callback
+        ``on_pre_render_win``.
+        """
+        pass
+
+    def on_pre_render_win(self, window):
+        """
+        This function will be called each time the buffer will be rendered
+        to a window, but after ``on_pre_render``. It allows the buffer to do
+        preparations for rendering its lines that depend on the window it is
+        rendered to.
+        """
         pass
 
     def line_count(self):

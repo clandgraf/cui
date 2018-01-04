@@ -156,7 +156,10 @@ class Window(WindowBase):
         self._handle.insert_string(self.dimensions[0], 0, mline, style, style, ['bold'])
 
     def _render_buffer(self):
-        self._buffer.on_pre_render()
+        if not self._buffer.on_pre_render_called:
+            self._buffer.on_pre_render()
+            self._buffer.on_pre_render_called = True
+        self._buffer.on_pre_render_win(self)
         self._render_lines(self._buffer.get_lines(self))
 
     def render(self, is_active):
