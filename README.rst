@@ -6,7 +6,7 @@ bootstrap a development setup by issuing:
 
 .. code-block:: shell
 
-   python3 checkout.py
+   python3 bootstrap.py
 
 See also:
 
