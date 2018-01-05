@@ -9,6 +9,37 @@ from operator import add
 from functools import reduce, wraps
 
 
+def truncate_left(width, string):
+    if len(string) > width:
+        return '%s%s' % ('...', string[-(width - 3):])
+    return string
+
+
+def pad_left(width, string):
+    trunc = string[:width]
+    return trunc + ' ' * (width - len(trunc))
+
+
+def pad_right(width, string):
+    trunc = string[:width]
+    return ' ' * (width - len(trunc)) + trunc
+
+
+def find_index(lst, predicate, default_index=-1):
+    return find(lst, predicate, default_index=default_index)[0]
+
+
+def find_value(lst, predicate, default_value=None):
+    return find(lst, predicate, default_value=default_value)[1]
+
+
+def find(lst, predicate, default_index=-1, default_value=None):
+    return next(((index, value)
+                 for index, value in enumerate(lst)
+                 if predicate(value, index)),
+                (default_index, default_value))
+
+
 def forward(to, methods, cls=None):
     """
     Class Decorator that forwards method calls to another object.

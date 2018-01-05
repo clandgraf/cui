@@ -29,12 +29,6 @@ from cui.keymap import WithKeymap
 from cui.util import get_base_classes, deep_get, deep_put, minmax
 
 
-def pad_left(width, string):
-    if len(string) > width:
-        return '%s%s' % ('...', string[-(width - 3):])
-    return string
-
-
 def with_window(f):
     """
     Decorator that runs function only if buffer is in selected window.
