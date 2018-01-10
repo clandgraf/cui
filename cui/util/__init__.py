@@ -62,18 +62,6 @@ def forward(to, methods, cls=None):
     return _forward
 
 
-def translate_path(file_map, file_path, reverse=False):
-    from_index = 1 if reverse else 0
-    to_index =   0 if reverse else 1
-
-    for mapping in file_map:
-        from_prefix = mapping[from_index]
-        to_prefix =   mapping[to_index]
-        if file_path.startswith(from_prefix):
-            return to_prefix + file_path[len(from_prefix):]
-    return file_path
-
-
 def add_to_sys_path(p):
     sys.path.append(p)
 
