@@ -51,7 +51,7 @@ class ConnectionTerminated(Exception):
 class Session(object):
     def __init__(self, socket):
         self.socket = socket
-        self.address = socket.getsockname()
+        self.address = socket.getpeername()
 
     def handle(self):
         pass
