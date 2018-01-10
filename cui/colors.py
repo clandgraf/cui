@@ -56,6 +56,7 @@ COLOR_MAP = {
 
 FGCOL_MAP = {
     'default':           'white',
+    'inactive':          'white',
     'selection':         'black',
     'modeline_active':   'black',
     'modeline_inactive': 'white',

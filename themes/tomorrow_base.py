@@ -1,6 +1,7 @@
 import cui
 
 # Core Faces
+cui.def_foreground('inactive',          'light_grey')
 cui.def_foreground('modeline_active',   'white')
 cui.def_background('modeline_active',   'medium_grey')
 cui.def_foreground('modeline_inactive', 'light_grey')
