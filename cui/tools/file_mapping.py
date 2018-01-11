@@ -44,3 +44,48 @@ class FileMapping(object):
 
     def to_this(self, file_path):
         return self._translate(file_path, reverse=True)
+
+    def copy(self):
+        fm = FileMapping()
+        fm._from = self._from
+        fm._to = self._to
+        return fm
+
+
+class TwoStepMapping(FileMapping):
+    """
+    This class is useful in the rare case, where you want to make a
+    mapping between file paths, e.g., because you are using a remote
+    debugger, and also need to apply a static mapping after that.
+
+    This is usually the case when you are running on Windows and cui
+    is running inside a Cygwin argument. If now you are using a remote
+    debugger you may instantiate a file mapping as follows:
+
+    .. code-block:: python
+
+       debugger_mapping = TwoStepMapping(
+         cygwin.FILE_MAPPING,
+         my_network_mapping
+       )
+
+    Note that this class provides no interface to modify static_mapping,
+    and its copy method does not make a copy of static_mapping.
+    """
+    def __init__(self, static_mapping, from_mapping=[]):
+        super(TwoStepMapping, self).__init__(from_mapping)
+        self._static_mapping = static_mapping
+
+    def _translate(self, file_path, reverse=False):
+        if reverse:
+            fp1 = super(TwoStepMapping, self)._translate(file_path, reverse)
+            fp2 = self._static_mapping._translate(fp1, reverse)
+            return fp2
+        else:
+            fp1 = self._static_mapping._translate(file_path, reverse)
+            fp2 = super(TwoStepMapping, self)._translate(fp1, reverse)
+            return fp2
+
+    def copy(self):
+        fm = super(TwoStepMapping, self).copy()
+        fm._static_mapping = static_mapping

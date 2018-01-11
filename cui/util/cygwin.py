@@ -5,6 +5,8 @@
 import re
 import subprocess
 
+from cui.tools import file_mapping
+
 MOUNT_DRIVE_RE = re.compile('([A-Z]): on (\S+) *')
 
 def _cygwin_home():
@@ -22,3 +24,6 @@ def cygwin_file_mappings():
     yield ('/', _cygwin_home())
     yield from ((cygwin_path, '%s:/' % drive_letter)
                 for cygwin_path, drive_letter in _cygwin_drives())
+
+
+FILE_MAPPING = file_mapping.FileMapping(cygwin_file_mappings())
