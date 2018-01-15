@@ -47,8 +47,8 @@ class FileMapping(object):
 
     def copy(self):
         fm = FileMapping()
-        fm._from = self._from
-        fm._to = self._to
+        fm._from = list(self._from)
+        fm._to = list(self._to)
         return fm
 
 
@@ -87,5 +87,7 @@ class TwoStepMapping(FileMapping):
             return fp2
 
     def copy(self):
-        fm = super(TwoStepMapping, self).copy()
-        fm._static_mapping = static_mapping
+        fm = TwoStepMapping(self._static_mapping)
+        fm._from = list(self._from)
+        fm._to = list(self._to)
+        return fm

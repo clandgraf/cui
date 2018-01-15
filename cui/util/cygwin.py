@@ -22,7 +22,7 @@ def _cygwin_drives():
 
 def cygwin_file_mappings():
     yield ('/', _cygwin_home())
-    yield from ((cygwin_path, '%s:/' % drive_letter)
+    yield from ((cygwin_path, '%s:/' % drive_letter.lower())
                 for cygwin_path, drive_letter in _cygwin_drives())
 
 
