@@ -48,8 +48,8 @@ def with_window(f):
 
 def with_current_buffer(fn):
     @functools.wraps(fn)
-    def _fn():
-        return fn(cui.current_buffer())
+    def _fn(*args, **kwargs):
+        return fn(cui.current_buffer(), *args, **kwargs)
     return _fn
 
 
