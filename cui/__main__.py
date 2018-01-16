@@ -11,10 +11,12 @@ import traceback
 
 
 def create_init_file():
-    default_init_path = cui.base_directory('init.py')
-    user_init_path = os.path.expanduser(os.path.join(pathlib.Path.home(), '.cui_init.py'))
+    user_dir = cui.user_directory()
+    if not os.path.exists(user_dir):
+        os.makedirs(user_dir)
+    user_init_path = cui.user_directory('init.py')
     if not os.path.exists(user_init_path):
-        shutil.copyfile(default_init_path, user_init_path)
+        shutil.copyfile(cui.base_directory('init.py'), user_init_path)
     return user_init_path
 
 

@@ -5,6 +5,7 @@
 import contextlib
 import functools
 import os
+import pathlib
 
 from cui.core import \
     context, core_api_ns, Core, \
@@ -65,9 +66,11 @@ with core_api_ns(globals()) as core_api:
     core_api('get_foregrounds')
 
 
-def base_directory(rel_path):
-    return os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')),
-                        rel_path)
+def base_directory(*args):
+    return os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')), *args)
+
+def user_directory(*args):
+    return os.path.join(os.path.expanduser(os.path.join(pathlib.Path.home(), '.cui')), *args)
 
 # Shortcuts
 
