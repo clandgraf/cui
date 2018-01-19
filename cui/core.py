@@ -19,7 +19,7 @@ from cui.term import Frame
 from cui.keymap import WithKeymap
 from cui.util import deep_get, deep_put, forward
 from cui.colors import ColorCore, ColorException
-from cui.singleton import Singleton, combine_meta_classes
+from cui.meta import Singleton, combine_meta_classes
 from cui.io_selector import IOSelector
 
 __all__ = ['init_func', 'Core']
