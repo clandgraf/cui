@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 import cui
+import functools
 
 from .base import ListBuffer
 from .util import with_current_buffer
@@ -128,6 +129,14 @@ class TreeBuffer(ListBuffer):
         return [item]
 
 
+def with_selected_item(fn):
+    @functools.wraps(fn)
+    @with_current_buffer
+    def _fn(b, *args, **kwargs):
+        return fn(b.selected_item(), *args, **kwargs)
+    return _fn
+
+
 ################################
 # TreeBuffer with NodeRenderers
 ################################
@@ -220,3 +229,22 @@ class DefaultTreeBuffer(TreeBuffer,
 
     def render_node(self, window, item, depth, width):
         return self._get_handler(item).render(window, item, depth, width)
+
+
+def with_node_handler(fn):
+    @functools.wraps(fn)
+    @with_current_buffer
+    def _fn(b, *args, **kwargs):
+        item = b.selected_item()
+        handler = b._get_handler(item)
+        return fn(handler, item, *args, **kwargs)
+    return _fn
+
+
+def invoke_node_handler(fn_name):
+    @with_node_handler
+    def fn(handler, item, *args, **kwargs):
+        handler_fn = getattr(handler, fn_name, None)
+        if handler_fn:
+            return handler_fn(item, *args, **kwargs)
+    return fn

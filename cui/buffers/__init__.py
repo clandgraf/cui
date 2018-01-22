@@ -34,7 +34,8 @@ from .editable import \
     InputBuffer, ConsoleBuffer
 
 from .trees import \
-    TreeBuffer, DefaultTreeBuffer, node_handlers, NodeHandler
+    TreeBuffer, with_selected_item, DefaultTreeBuffer, node_handlers, NodeHandler, \
+    with_node_handler, invoke_node_handler
 
 from .util import \
     with_current_buffer, with_window, close_buffer
