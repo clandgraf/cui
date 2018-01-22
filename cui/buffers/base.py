@@ -17,7 +17,7 @@ class Buffer(WithKeymap):
     """
 
     @classmethod
-    def name(cls, *args):
+    def name(cls, mode_line_columns=None, *args):
         return None
 
     def __init__(self, *args):
@@ -25,8 +25,8 @@ class Buffer(WithKeymap):
         self.args = args
         self._state = {'win/buf': {}}
 
-    def buffer_name(self):
-        return self.name(*self.args)
+    def buffer_name(self, mode_line_columns=None):
+        return self.name(*self.args, mode_line_columns=mode_line_columns)
 
     def window(self):
         selected_window = cui.selected_window()

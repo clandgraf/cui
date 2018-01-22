@@ -150,8 +150,9 @@ class Window(WindowBase):
         return self._buffer
 
     def _render_mode_line(self, is_active):
-        bname = self._buffer.buffer_name()
-        mline = ('  %s' + (' ' * (self.dimensions[1] - len(bname) - 2))) % bname
+        mode_line_columns = self.dimensions[1] - 2
+        bname = self._buffer.buffer_name(mode_line_columns=mode_line_columns)
+        mline = ('  %s%s' % (bname, (' ' * (mode_line_columns - len(bname)))))
         style = 'modeline_active' if is_active else 'modeline_inactive'
         self._handle.insert_string(self.dimensions[0], 0, mline, style, style, ['bold'])
 

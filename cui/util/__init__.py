@@ -11,7 +11,13 @@ from functools import reduce, wraps
 
 def truncate_left(width, string):
     if len(string) > width:
-        return '%s%s' % ('...', string[-(width - 3):])
+        return ('%s%s' % ('...', string[-(width - 3):]))[:width]
+    return string
+
+
+def truncate_right(width, string):
+    if len(string) > width:
+        return ('%s%s' % (string[-(width - 3):], '...'))[:width]
     return string
 
 

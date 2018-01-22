@@ -33,7 +33,7 @@ class HelpBuffer(buffers.ScrollableBuffer):
     }
 
     @classmethod
-    def name(cls, buffer_class):
+    def name(cls, buffer_class, **kwargs):
         return "Help: %s" % buffer_class.__name__
 
     def __init__(self, buffer_class):
@@ -80,7 +80,7 @@ class HelpBuffer(buffers.ScrollableBuffer):
 @api.buffer_keys('C-x C-b', 'list_buffers')
 class BufferListBuffer(buffers.ListBuffer):
     @classmethod
-    def name(cls, *args):
+    def name(cls, *args, **kwargs):
         return "Buffers"
 
     def items(self):
@@ -99,7 +99,7 @@ class EvalBuffer(buffers.ConsoleBuffer):
     Evaluate Python expressions in the context of cui.
     """
     @classmethod
-    def name(cls):
+    def name(cls, **kwargs):
         return 'cui-eval'
 
     def on_send_current_buffer(self, b):
@@ -115,7 +115,7 @@ class LogBuffer(buffers.ListBuffer):
     """
 
     @classmethod
-    def name(cls):
+    def name(cls, **kwargs):
         return "Logger"
 
     def items(self):
@@ -131,7 +131,7 @@ class CompletionsBuffer(buffers.ListBuffer):
     """
 
     @classmethod
-    def name(cls, runloop_id):
+    def name(cls, runloop_id, **kwargs):
         return "Completions <%s>" % runloop_id
 
     def __init__(self, runloop_id):
@@ -152,7 +152,7 @@ class StaticBuffer(buffers.ListBuffer):
     """
 
     @classmethod
-    def name(cls, json_file):
+    def name(cls, json_file, **kwargs):
         return "JSON: %s" % json_file
 
     def __init__(self, json_file):
