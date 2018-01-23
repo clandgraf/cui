@@ -80,6 +80,7 @@ class Server(object):
 
         self.server = None
         self.clients = collections.OrderedDict()
+        self.clients_by_name = {}
 
     def start(self):
         host = cui.get_variable(self.host_var)
@@ -99,6 +100,7 @@ class Server(object):
         session = self.session_factory(client_socket)
         cui.message('Connection received from %s:%s' % session.address)
         self.clients[id(client_socket)] = session
+        self.clients_by_name[str(session)] = session
         cui.register_waitable(client_socket, self.read)
 
     def read(self, sock):
@@ -121,9 +123,11 @@ class Server(object):
             else:
                 try:
                     session = self.clients.get(socket_key)
+                    session_name = str(session)
                     cui.message('Connection from %s:%s terminated' % session.address)
                     session.close()
                 finally:
+                    del self.clients_by_name[session_name]
                     del self.clients[socket_key]
         finally:
             cui.unregister_waitable(sock)
