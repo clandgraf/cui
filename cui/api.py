@@ -37,6 +37,7 @@ with core_api_ns(globals()) as core_api:
     core_api('create_buffer')
     core_api('select_buffer')
     core_api('get_buffer')
+    core_api('get_buffers')
     core_api('kill_buffer_object')
     core_api('previous_buffer',        'S-<tab>')
     core_api('next_buffer',            '<tab>')
@@ -393,7 +394,16 @@ def with_created_buffer(fn):
         return fn(create_buffer(buffer_class, *args), **kwargs)
     return _fn
 
+@api_fn
 def buffer_window(buffer_object, current_window_set=False):
+    """
+    Returns the first window that displays the provided buffer object.
+    If current_window_set is set, restrict search to current window_set.
+
+    :param buffer_object: A buffer_object
+    :param current_window_set: If True search is restricted to current
+                               window_set.
+    """
     return find_window(lambda w: w.buffer() == buffer_object, current_window_set=current_window_set)
 
 @with_created_buffer

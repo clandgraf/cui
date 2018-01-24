@@ -327,6 +327,11 @@ class Core(WithKeymap,
         else:
             return buffers[0]
 
+    def get_buffers(self, buffer_class, predicate=None):
+        return list(filter(lambda b: (type(b) is buffer_class and
+                                      (predicate is None or predicate(b))),
+                           self.buffers))
+
     @property
     def mini_buffer(self):
         return self._mini_buffer
