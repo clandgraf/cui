@@ -96,6 +96,13 @@ def global_key(keychord):
     return _global_key
 
 
+def local_key(buffer_class, keychord):
+    def _local_key(fn):
+        set_local_key(buffer_class, keychord, fn)
+        return fn
+    return _local_key
+
+
 def api_fn(fn):
     globals()[fn.__name__] = fn
     return fn
@@ -484,6 +491,7 @@ def exec_if_buffer_exists(expr, buffer_class, *args):
     if buffer_object:
         expr(buffer_object)
 
+
 def kill_buffer(buffer_class, *args):
     """
     Remove the buffer.
@@ -527,3 +535,19 @@ def close_completions(completion_id):
 def display_static(json_file):
     from cui import buffers_std
     switch_buffer(buffers_std.StaticBuffer, json_file)
+
+
+from cui.buffers import ListBuffer, with_current_buffer
+
+@api_fn
+@local_key(ListBuffer, 'M-g g')
+@with_current_buffer
+@interactive(lambda: read_integer('Item'))
+def goto_item(b, item):
+    return goto_item_in_buffer(b, item)
+
+@api_fn
+def goto_item_in_buffer(b, item):
+    b.set_variable(['win/buf', 'selected-item'], item)
+    b.recenter()
+    return item
