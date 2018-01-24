@@ -243,13 +243,18 @@ class WindowSet(object):
             self._core.message("Can not delete last window.")
             return
 
-        next_window = self._next_window()['content']
-        del self._windows[id(self._selected_window['content'])]
-
         parent = self._selected_window['parent']
-        new_parent_content = parent['content'][1] \
-                             if parent['content'][0] == self._selected_window else \
-                             parent['content'][0]
+        # Direction in which our neighbours are:
+        # - if we are top/left this is next
+        # - if we are bottom/right this is previous
+        direction = 1 if self._selected_window == parent['content'][0] else 0
+
+        # New _selected_window. Since parent may be a split we need to use _neighbouring_window
+        new_selected_window = self._neighbouring_window(direction=direction)['content']
+        # We have at least two windows, so parent is always a split. Replace with neighbour node
+        new_parent_content = parent['content'][direction]
+
+        del self._windows[id(self._selected_window['content'])]
 
         parent['wm_type'] = new_parent_content['wm_type']
         parent['content'] = new_parent_content['content']
@@ -260,8 +265,7 @@ class WindowSet(object):
             self._windows[id(parent['content'])] = parent
         self._resize_window_tree(parent)
 
-        # FIXME this should be previous window
-        self.select_window(next_window)
+        self.select_window(new_selected_window)
 
     def delete_all_windows(self):
         self._root = self._selected_window
