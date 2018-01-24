@@ -81,8 +81,20 @@ class WindowSet(object):
             yield win_queue.pop(0)
 
     def _neighbouring_window(self, direction, use=None):
-        # TODO make direction optional
-        # Provide line/col advice when descending, buffers may provide if available
+        """
+        Return the neighbouring window.
+
+        This searches for the neighbouring window (leaf) in the given direction.
+        If use is provided, only split-nodes of the given type are considered.
+
+        TODO Provide line/col advice when descending, buffers may provide if available
+        TODO make direction optional
+
+        :param direction:
+            0 for previous window, 1 for next window.
+        :param use:
+            ``'bsplit' or 'rsplit'`` to only use split-nodes of that type.
+        """
         rdirection = (direction + 1) % 2
         current = self._selected_window
         while True:
@@ -249,7 +261,7 @@ class WindowSet(object):
         # - if we are bottom/right this is previous
         direction = 1 if self._selected_window == parent['content'][0] else 0
 
-        # New _selected_window. Since parent may be a split we need to use _neighbouring_window
+        # New _selected_window. Since neighbour may be a split we need to use _neighbouring_window
         new_selected_window = self._neighbouring_window(direction=direction)['content']
         # We have at least two windows, so parent is always a split. Replace with neighbour node
         new_parent_content = parent['content'][direction]
