@@ -210,9 +210,8 @@ def read_file(prompt, default=None):
     :param default: If provided the default value of
                     the minibuffer is set to this
     """
-    f = os.path.join(default or current_buffer(no_minibuffer=True) \
-                     .get_variable(['cwd'], os.getcwd()),
-                     '')
+    f = os.path.join(default or current_buffer(no_minibuffer=True).cwd, '')
+
     while True:
         f = read_string(prompt, f, complete_files)
         if os.path.exists(f):

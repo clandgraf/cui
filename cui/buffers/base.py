@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 import cui
+import os
 
 from cui.keymap import WithKeymap
 from cui.util import deep_get, deep_put, minmax
@@ -25,6 +26,10 @@ class Buffer(WithKeymap):
         self.args = args
         self._state = {'win/buf': {}}
 
+    @property
+    def cwd(self):
+        return os.getcwd()
+
     def buffer_name(self, mode_line_columns=None):
         return self.name(*self.args, mode_line_columns=mode_line_columns)
 
@@ -42,11 +47,8 @@ class Buffer(WithKeymap):
             if selected_window:
                 selected_window.update_state(path[1:], value)
 
-    def get_variable(self, path, default=None):
-        result = deep_get(self._state, path, return_none=(default is not None))
-        if result is None:
-            return default
-        return result
+    def get_variable(self, path):
+        return deep_get(self._state, path, return_none=False)
 
     # --------------- Override these ------------
 
