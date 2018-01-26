@@ -2,3 +2,5 @@
 +/cui
 +/src/cui-pydevd/cui_pydevd
 +/src/cui-emacs/cui_emacs
++/src/cui-source/cui_source
++/src/cui-gdb/cui_gdb

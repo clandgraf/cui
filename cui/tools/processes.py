@@ -7,6 +7,11 @@ import select
 import signal
 import subprocess
 
+<<<<<<< Updated upstream
+=======
+from cui import tools
+
+>>>>>>> Stashed changes
 class Process(object):
     BUFFER_SIZE = 1024
 

@@ -3,16 +3,10 @@
 TODO
 ====
 
- --> def_variable(['cwd']) for all buffers, remove stupid default case handling for
-     get_variable
-
- --> Let interactive runloops stack in minibuffer-window
-
-     Define a maximum of active minibuffers to be displayed in minibufferwindow
+ --> pydevd repl should support statements
 
  --> If cui.api is dynamically extended, this is not reflected in cui
      which should contain api-calls
-
 
  --> with_keymap.handle_input should return function.
      core must call run_interactive(fn) on dispatch_input
@@ -20,7 +14,6 @@ TODO
      --> @interactive exec_command is then possible too
 
      --> Interactive Commands with input from minibuffer
-
 
 
  --> buffer_keys functions should get added to cui.api
