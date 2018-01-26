@@ -52,11 +52,33 @@ class ConnectionTerminated(Exception):
 
 
 class Session(object):
+    BUFFER_SIZE = 4096
+
     def __init__(self, socket, **kwargs):
         self.socket = socket
         self.address = socket.getpeername()
 
+    def _get_input(self):
+        try:
+            r = self.socket.recv(Session.BUFFER_SIZE)
+
+            if len(r) == 0:
+                if len(self._read_buffer) > 0:
+                    cui.message('received incomplete message: %s' % self._read_buffer)
+                raise server.ConnectionTerminated('received 0 bytes')
+
+            return r
+
+        except socket.error as e:
+            if e.args[0] not in [errno.EAGAIN, errno.EWOULDBLOCK]:
+                raise e
+
+        return b''
+
     def handle(self):
+        self.handle_input(self._get_input())
+
+    def handle_input(self, buf):
         pass
 
     def send_all(self, msg):
@@ -75,26 +97,6 @@ class Session(object):
 
 
 class LineBufferedSession(tools.LineReader, Session):
-    def __init__(self, socket, **kwargs):
-        super(LineBufferedSession, self).__init__(socket, **kwargs)
-
-    def get_input(self):
-        try:
-            r = self.socket.recv(4096)
-
-            if len(r) == 0:
-                if len(self._read_buffer) > 0:
-                    cui.message('received incomplete message: %s' % self._read_buffer)
-                raise server.ConnectionTerminated('received 0 bytes')
-
-            return r
-
-        except socket.error as e:
-            if e.args[0] not in [errno.EAGAIN, errno.EWOULDBLOCK]:
-                raise e
-
-        return b''
-
     def handle_line(self, line):
         pass
 

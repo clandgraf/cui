@@ -4,9 +4,10 @@
 
 import os
 import select
+import signal
 import subprocess
 
-class ProcessPipe(object):
+class Process(object):
     BUFFER_SIZE = 1024
 
     def __init__(self, *args):
@@ -21,9 +22,18 @@ class ProcessPipe(object):
         cui.register_waitable(self._pread, self.handle)
 
     def stop(self):
-        # TODO send signal
+        self.kill()
+
+    def kill(self):
+        os.kill(self._proc.pid, signal.SIGINT)
+
+    def handle(self):
+        self.handle_input(os.read(self._pread, ProcessPipe.BUFFER_SIZE))
+
+    def handle_input(self):
         pass
 
-    def handle(self, pread):
-        # TODO do some reading
+
+class LineBufferedProcess(tools.LineReader, Process):
+    def handle_line(self, line):
         pass
