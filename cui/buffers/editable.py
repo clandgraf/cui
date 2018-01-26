@@ -2,6 +2,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import cui
+
 from cui.keymap import WithKeymap
 
 from .base import ScrollableBuffer
@@ -77,7 +79,7 @@ class InputBuffer(WithKeymap):
     }
 
     def __init__(self, *args, **kwargs):
-        super(InputBuffer, self).__init__()
+        super(InputBuffer, self).__init__(*args, **kwargs)
         self._bhistory = []
         self._bhistory_index = -1
         self._saved_buffer = ''
