@@ -38,10 +38,13 @@ A simple example:
 """
 
 import collections
+import errno
 import select
 import socket
 
 import cui
+
+from cui import tools
 
 
 class ConnectionTerminated(Exception):
@@ -49,7 +52,7 @@ class ConnectionTerminated(Exception):
 
 
 class Session(object):
-    def __init__(self, socket):
+    def __init__(self, socket, **kwargs):
         self.socket = socket
         self.address = socket.getpeername()
 
@@ -69,6 +72,31 @@ class Session(object):
 
     def __str__(self):
         return '%s:%s' % self.address
+
+
+class LineBufferedSession(tools.LineReader, Session):
+    def __init__(self, socket, **kwargs):
+        super(LineBufferedSession, self).__init__(socket, **kwargs)
+
+    def get_input(self):
+        try:
+            r = self.socket.recv(4096)
+
+            if len(r) == 0:
+                if len(self._read_buffer) > 0:
+                    cui.message('received incomplete message: %s' % self._read_buffer)
+                raise server.ConnectionTerminated('received 0 bytes')
+
+            return r
+
+        except socket.error as e:
+            if e.args[0] not in [errno.EAGAIN, errno.EWOULDBLOCK]:
+                raise e
+
+        return b''
+
+    def handle_line(self, line):
+        pass
 
 
 class Server(object):
