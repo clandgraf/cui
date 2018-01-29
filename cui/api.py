@@ -411,6 +411,26 @@ def buffer_window(buffer_object, current_window_set=False):
 
 @with_created_buffer
 def buffer_visible(buffer_object, split_method=split_window_below, to_window=False):
+    """
+    Ensures buffer exists and is visible in current window set.
+
+    This function returns the window displaying the buffer_object
+    identified by ``buffer_class`` and ``*args``, as well as the
+    buffer_object itself. If the buffer does not exist it is
+    instantiated, if it is not displayed a window will be chosen
+    based on split_method and the buffer will be dipslayed in it.
+
+    :param buffer_class:
+    :param args:
+    :param split_method:
+        Method of creating the window. Pass as kwarg.
+        - ``None`` uses the currently selected window.
+        - ``cui.split_window_below`` will create a new
+          window below the selected one.
+        - ``cui.split_window_right`` will create a new
+          window right of the selected one.
+    :to_window: if set, the window will be selected
+    """
     win = buffer_window(buffer_object, current_window_set=True)
     if not win:
         win = split_method() if split_method else selected_window()
@@ -454,12 +474,9 @@ def exec_in_buffer_visible(expr, buffer_class, *args, **kwargs):
     The default value is split_window_below. If split_method
     is None the buffer is displayed in the currently selected window.
 
-    :param buffer_class:
-        The class of the buffer
-    :param args:
-        The arguments of the buffer
-    :param split_method:
-        Method of creating the window. Pass as kwarg.
+    All arguments except ``expr`` correspond to ``buffer_visible``.
+
+    :param expr: The expression to be executed
     """
     window, buffer_object = buffer_visible(buffer_class, *args, **kwargs)
     with window_selected(window):
