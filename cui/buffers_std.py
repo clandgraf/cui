@@ -103,7 +103,9 @@ class EvalBuffer(buffers.ConsoleBuffer):
         return 'cui-eval'
 
     def on_send_current_buffer(self, b):
-        self.extend(str(api.eval_python(b)))
+        result = api.eval_python(b)
+        if result is not None:
+            self.extend(str(result))
 
 
 @api.buffer_keys('C-x C-l', 'show_log')

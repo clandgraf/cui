@@ -249,7 +249,11 @@ def eval_python(code_string):
 
     :param code_string: A string containing a python expression
     """
-    code_object = compile(code_string, '<string>', 'eval')
+    try:
+        code_object = compile(code_string, '<string>', 'eval')
+    except SyntaxError:
+        code_object = compile(code_string, '<string>', 'exec')
+
     return eval(code_object, globals())
 
 # ==================== Event handling =======================
