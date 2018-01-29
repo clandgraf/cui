@@ -3,18 +3,10 @@
 TODO
 ====
 
- --> pydevd repl should support statements
+ --> disable frame dependent buffers when thread is running
 
  --> If cui.api is dynamically extended, this is not reflected in cui
      which should contain api-calls
-
- --> with_keymap.handle_input should return function.
-     core must call run_interactive(fn) on dispatch_input
-
-     --> @interactive exec_command is then possible too
-
-     --> Interactive Commands with input from minibuffer
-
 
  --> buffer_keys functions should get added to cui.api
 
@@ -52,19 +44,10 @@ TODO
        on_kill_thread:   remove map with thread_id (primary, all secondaries)
        on_kill_session:  on_kill_thread for all sessions
 
- --> remove D_Frame class use dict instead
-
  --> Pydevds Layouting in user definable hook
-
- --> Deleting windows: Focus previous window in window order
 
  --> API: resize windows, ratio may be suboptimal here, wm.resize-calls should be able to
      handle columns/rows as input
-
- --> API: Variable Access
-     set_localvar: if value is defined in buffer, set in buffer else error
-     get_localvar: read variable from buffer
-     def_localvar: if initializer, use that, else read from core (if None initialize with None)
 
 
 Manual
