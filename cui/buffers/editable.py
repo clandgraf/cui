@@ -155,6 +155,8 @@ class InputBuffer(WithKeymap):
         ]
 
     def send_current_buffer(self):
+        if self._buffer in self._bhistory:
+            self._bhistory.remove(self._buffer)
         self._bhistory.append(self._buffer)
         self._bhistory_index = -1
         b = self._buffer
