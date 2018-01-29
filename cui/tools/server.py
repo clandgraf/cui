@@ -65,7 +65,7 @@ class Session(object):
             if len(r) == 0:
                 if len(self._read_buffer) > 0:
                     cui.message('received incomplete message: %s' % self._read_buffer)
-                raise server.ConnectionTerminated('received 0 bytes')
+                raise ConnectionTerminated('received 0 bytes')
 
             return r
 
