@@ -208,6 +208,8 @@ class DefaultTreeBuffer(TreeBuffer,
 
         handler = find_value(self._node_handlers,
                              lambda handler, _: handler.matches(item))
+        if handler is None:
+            raise ValueError('No NodeHandler found for %s' % repr(item))
         self._node_handler_cache[item_id] = handler
 
         return handler
@@ -219,7 +221,7 @@ class DefaultTreeBuffer(TreeBuffer,
         return self._get_handler(item).is_expanded(item)
 
     def set_expanded(self, item, expanded):
-        self._get_handler(item).set_expanded(item)
+        self._get_handler(item).set_expanded(item, expanded)
 
     def has_children(self, item):
         return self._get_handler(item).has_children(item)
