@@ -136,7 +136,7 @@ def complete_from_list(list_function):
             matches = list(filter(lambda m: m.startswith(buffer_content), list_function()))
             prefix = os.path.commonprefix(matches)
             if len(matches) == 0:
-                cui.message('No completions.')
+                message('No completions.')
                 return buffer_content
             elif len(matches) > 1:
                 display_completions(completion_id, matches)
