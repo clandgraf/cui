@@ -13,21 +13,29 @@ from cui import tools
 class Process(object):
     BUFFER_SIZE = 1024
 
-    def __init__(self, *args):
+    def __init__(self, *args, **kwargs):
         self._args = args
         self._pread = None
         self._pwrite = None
         self._proc = None
 
     def start(self):
-        self._proc = subprocess.Popen(self._args, stdout=subprocess.PIPE, stdin=subprocess.PIPE, bufsize=0)
+        self._proc = subprocess.Popen(self._args,
+                                      stdout=subprocess.PIPE,
+                                      stdin=subprocess.PIPE,
+                                      bufsize=0)
         cui.register_waitable(self._proc.stdout, self.handle)
 
     def stop(self):
         self.kill()
 
-    def kill(self):
-        os.kill(self._proc.pid, signal.SIGINT)
+    def kill(self, wait=False):
+        self._proc.kill()
+        if wait:
+            return self._proc.wait()
+
+    def send_all(self, buf):
+        self._proc.stdin.write(buf.encode('utf-8'))
 
     def handle(self, pread):
         self.handle_input(self._proc.stdout.read(Process.BUFFER_SIZE))

@@ -13,7 +13,7 @@ class LineReader(object):
 
     def handle_input(self, buf):
         self._read_buffer += buf.decode(self._encoding)
-        while self._read_buffer.find('\n') != -1:
+        while self._read_buffer.find(self._separator) != -1:
             line, self._read_buffer = self._read_buffer.split(self._separator, 1)
             self.handle_line(line)
 
