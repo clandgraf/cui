@@ -3,6 +3,8 @@
 TODO
 ====
 
+ --> Friendlier Standard Keychords
+
  --> disable frame dependent buffers when thread is running
 
  --> If cui.api is dynamically extended, this is not reflected in cui
