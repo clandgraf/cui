@@ -1,4 +1,4 @@
-# Copyright (c) 2017 Christoph Landgraf. All rights reserved.
+# Copyright (c) 2017-2018 Christoph Landgraf. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -6,11 +6,8 @@
 The IOSelector class provides an abstraction on the select syscall.
 """
 
-import cui
 import os
 import select
-
-# TODO remove as_update_func
 
 class IOSelector(object):
     """
@@ -39,10 +36,9 @@ class IOSelector(object):
     which, if set, registers the IOSelector as a cui update-function.
     """
 
-    def __init__(self, timeout=0, as_update_func=True):
+    def __init__(self, timeout=0):
         self._timeout = timeout
         self._invalidated = False
-        self._as_update_func = as_update_func
         self._waitables = []
         self._handlers = {}
         self._async_handlers = {}
@@ -54,9 +50,6 @@ class IOSelector(object):
         self.register(self._fd_read, self._process_async_event)
 
     def register(self, waitable, handler):
-        if self._as_update_func and not cui.is_update_func(self.select):
-            cui.message('Starting socket selector')
-            cui.update_func(self.select)
         self._waitables.append(waitable)
         self._handlers[id(waitable)] = handler
 
@@ -64,9 +57,6 @@ class IOSelector(object):
         try:
             self._waitables.remove(waitable)
             del self._handlers[id(waitable)]
-            if not self._waitables and cui.is_update_func(self.select):
-                cui.message('Stopping socket selector')
-                cui.remove_update_func(self.select)
         except ValueError:
             pass
 
@@ -95,8 +85,7 @@ class IOSelector(object):
 
     def register_async(self, name, handler):
         if '\n' in name:
-            cui.message('Line-breaks not allowed in async-handler names.')
-            return
+            raise ValueError('Line-breaks not allowed in async-handler names.')
         self._async_handlers[name] = handler
 
     def unregister_async(self, name):

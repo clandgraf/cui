@@ -1,4 +1,4 @@
-# Copyright (c) 2017 Christoph Landgraf. All rights reserved.
+# Copyright (c) 2017-2018 Christoph Landgraf. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -99,6 +99,18 @@ class Session(object):
 class LineBufferedSession(tools.LineReader, Session):
     def handle_line(self, line):
         pass
+
+
+class Connection(object):
+    def __init__(self, session_factory, host, port):
+        self.session_factory = session_factory
+        self.host = host
+        self.port = port
+        self.session = None
+
+    def start(self, **kwargs):
+        sock = socket.create_connection((self.host, self.port))
+        self.session = self.session_factory(sock, **kwargs)
 
 
 class Server(object):

@@ -1,4 +1,4 @@
-# Copyright (c) 2017 Christoph Landgraf. All rights reserved.
+# Copyright (c) 2017-2018 Christoph Landgraf. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -21,8 +21,6 @@ from cui.util import deep_get, deep_put, forward
 from cui.colors import ColorCore, ColorException
 from cui.meta import Singleton, combine_meta_classes
 from cui.io_selector import IOSelector
-
-__all__ = ['init_func', 'Core']
 
 # =================================== API ======================================
 
@@ -273,7 +271,7 @@ class Core(WithKeymap,
         super(Core, self).__init__()
         self._init_state()
         self.logger = Logger()
-        self.io_selector = IOSelector(timeout=None, as_update_func=False)
+        self.io_selector = IOSelector(timeout=None)
         self.buffers = []
         self._mini_buffer = MiniBuffer(self)
         self._exit_handlers = []

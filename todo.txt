@@ -3,7 +3,11 @@
 TODO
 ====
 
- --> Friendlier Standard Keychords
+ --> Implement cuiclient/cuiserver
+     --> Enable using cui.tools without initializing cui
+     --> Implement asynchronuous select/readline based cli
+
+ --> Terminal-Friendlier Standard Keychords
 
  --> disable frame dependent buffers when thread is running
 
