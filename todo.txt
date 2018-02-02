@@ -3,6 +3,13 @@
 TODO
 ====
 
+ --> Cleanup
+     --> When input is received handle prompt erasing and reprinting
+     --> Consolidate adding of line-endings
+     --> LineBufferedSession.send_all should use encoding from LineReader
+
+ --> AutoScroll in LogBuffer
+
  --> Implement cuiclient/cuiserver
      --> Enable using cui.tools without initializing cui
      --> Implement asynchronuous select/readline based cli

@@ -10,5 +10,8 @@ setup(
     license =          "BSD",
     url =              "https://github.com/clandgraf/cui",
     packages =         ['cui', 'cui_tools'],
-    entry_points =     {'console_scripts': ['cui = cui.__main__:main']}
+    entry_points =     {'console_scripts': [
+        'cui = cui.__main__:main',
+        'cuiclient = cui_client.__main__:main',
+    ]}
 )

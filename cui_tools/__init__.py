@@ -4,12 +4,14 @@
 
 
 # Mixin for io_selector handlers to dispatch input line-wise
+# TODO should use encoding for send_all
 class LineReader(object):
     def __init__(self, *args, **kwargs):
         super(LineReader, self).__init__(*args, **kwargs)
         self._read_buffer = ''
         self._encoding = kwargs.get('encoding', 'utf-8')
         self._separator = kwargs.get('separator', '\n')
+        self._callback = kwargs.get('callback', None)
 
     def handle_input(self, buf):
         self._read_buffer += buf.decode(self._encoding)
@@ -21,4 +23,5 @@ class LineReader(object):
         pass
 
     def handle_line(self, line):
-        pass
+        if self._callback:
+            self._callback(line)

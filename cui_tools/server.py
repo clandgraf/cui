@@ -52,7 +52,7 @@ class ConnectionTerminated(Exception):
 class Session(object):
     BUFFER_SIZE = 4096
 
-    def __init__(self, socket, **kwargs):
+    def __init__(self, socket, *args, **kwargs):
         self.socket = socket
         self.address = socket.getpeername()
 
@@ -74,7 +74,7 @@ class Session(object):
 
         return b''
 
-    def handle(self):
+    def handle(self, _=None):
         self.handle_input(self._get_input())
 
     def handle_input(self, buf):
@@ -96,20 +96,25 @@ class Session(object):
 
 
 class LineBufferedSession(LineReader, Session):
-    def handle_line(self, line):
-        pass
+    pass
 
 
 class Connection(object):
-    def __init__(self, session_factory, host, port):
+    def __init__(self, session_factory, host, port, env=None):
         self.session_factory = session_factory
         self.host = host
         self.port = port
         self.session = None
+        self._env = env
+        self._sock = None
 
     def start(self, **kwargs):
-        sock = socket.create_connection((self.host, self.port))
-        self.session = self.session_factory(sock, **kwargs)
+        self._sock = socket.create_connection((self.host, self.port))
+        self.session = self.session_factory(self._sock, **kwargs)
+        self._env.register_waitable(self._sock, self.session.handle)
+
+    def stop(self):
+        pass
 
 
 class Server(object):
