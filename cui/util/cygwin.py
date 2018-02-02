@@ -5,7 +5,7 @@
 import re
 import subprocess
 
-from cui.tools import file_mapping
+from . import file_mapping
 
 MOUNT_DRIVE_RE = re.compile('([A-Z]): on (\S+) *')
 

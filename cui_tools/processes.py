@@ -2,13 +2,12 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import cui
 import os
 import select
 import signal
 import subprocess
 
-from cui import tools
+from . import LineReader
 
 class Process(object):
     BUFFER_SIZE = 1024
@@ -18,15 +17,20 @@ class Process(object):
         self._pread = None
         self._pwrite = None
         self._proc = None
+        self._env = kwargs['env']
 
     def start(self):
         self._proc = subprocess.Popen(self._args,
                                       stdout=subprocess.PIPE,
                                       stdin=subprocess.PIPE,
                                       bufsize=0)
-        cui.register_waitable(self._proc.stdout, self.handle)
+        self._env.register_waitable(self._proc.stdout, self.handle)
 
     def stop(self):
+        self._env.unregister_waitable(self._proc.stdout)
+        self.term()
+
+    def term(self):
         self.kill()
 
     def kill(self, wait=False):
@@ -45,7 +49,7 @@ class Process(object):
         pass
 
 
-class LineBufferedProcess(tools.LineReader, Process):
+class LineBufferedProcess(LineReader, Process):
     def handle_line(self, line):
         # Overwrite in subclass
         pass

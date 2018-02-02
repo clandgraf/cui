@@ -20,7 +20,7 @@ from cui.keymap import WithKeymap
 from cui.util import deep_get, deep_put, forward
 from cui.colors import ColorCore, ColorException
 from cui.meta import Singleton, combine_meta_classes
-from cui.io_selector import IOSelector
+from cui_tools.io_selector import IOSelector
 
 # =================================== API ======================================
 

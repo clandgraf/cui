@@ -42,9 +42,7 @@ import errno
 import select
 import socket
 
-import cui
-
-from cui import tools
+from cui_tools import LineReader
 
 
 class ConnectionTerminated(Exception):
@@ -63,9 +61,10 @@ class Session(object):
             r = self.socket.recv(Session.BUFFER_SIZE)
 
             if len(r) == 0:
+                msg = 'received 0 bytes'
                 if len(self._read_buffer) > 0:
-                    cui.message('received incomplete message: %s' % self._read_buffer)
-                raise ConnectionTerminated('received 0 bytes')
+                    msg += 'received incomplete message: %s' % self._read_buffer
+                raise ConnectionTerminated(msg)
 
             return r
 
@@ -96,7 +95,7 @@ class Session(object):
         return '%s:%s' % self.address
 
 
-class LineBufferedSession(tools.LineReader, Session):
+class LineBufferedSession(LineReader, Session):
     def handle_line(self, line):
         pass
 
@@ -114,36 +113,37 @@ class Connection(object):
 
 
 class Server(object):
-    def __init__(self, session_factory, host_var, port_var):
+    def __init__(self, session_factory, host_var, port_var, **kwargs):
         super(Server, self).__init__()
         self.session_factory = session_factory
         self.host_var = host_var
         self.port_var = port_var
+        self._env = kwargs['env']
 
         self.server = None
         self.clients = collections.OrderedDict()
         self.clients_by_name = {}
 
     def start(self):
-        host = cui.get_variable(self.host_var)
-        port = cui.get_variable(self.port_var)
+        host = self._env.get_variable(self.host_var)
+        port = self._env.get_variable(self.port_var)
 
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.server.bind((host, port))
         self.server.listen(5)
-        cui.message('Listening on %s:%s' % self.server.getsockname())
+        self._env.message('Listening on %s:%s' % self.server.getsockname())
 
-        cui.register_waitable(self.server, self.read)
-        cui.add_exit_handler(self.shutdown)
+        self._env.register_waitable(self.server, self.read)
+        self._env.add_exit_handler(self.shutdown)
 
     def _accept_client(self):
         client_socket, client_address = self.server.accept()
         session = self.session_factory(client_socket)
-        cui.message('Connection received from %s:%s' % session.address)
+        self._env.message('Connection received from %s:%s' % session.address)
         self.clients[id(client_socket)] = session
         self.clients_by_name[str(session)] = session
-        cui.register_waitable(client_socket, self.read)
+        self._env.register_waitable(client_socket, self.read)
 
     def read(self, sock):
         if sock is self.server:
@@ -159,20 +159,20 @@ class Server(object):
         socket_key = id(sock)
         try:
             if sock == self.server:
-                cui.message('Closing server on %s:%s' % self.server.getsockname())
+                self._env.message('Closing server on %s:%s' % self.server.getsockname())
                 self.server.close()
                 self.server = None
             else:
                 try:
                     session = self.clients.get(socket_key)
                     session_name = str(session)
-                    cui.message('Connection from %s:%s terminated' % session.address)
+                    self._env.message('Connection from %s:%s terminated' % session.address)
                     session.close()
                 finally:
                     del self.clients_by_name[session_name]
                     del self.clients[socket_key]
         finally:
-            cui.unregister_waitable(sock)
+            self._env.unregister_waitable(sock)
 
     def shutdown(self):
         for session in self.clients.values():
