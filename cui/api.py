@@ -50,7 +50,7 @@ with core_api_ns(globals()) as core_api:
     core_api('previous_window_set',    'C-w 5 p')
     core_api('split_window_below',     'C-w 2')
     core_api('split_window_right',     'C-w 3')
-    core_api('split_toggle_type'       'C-w <space>')
+    core_api('split_toggle_type',      'C-w <space>')
     core_api('split_switch_children',  'C-w <tab>')
     core_api('select_window')
     core_api('find_window')
