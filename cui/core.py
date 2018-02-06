@@ -21,6 +21,7 @@ from cui.util import deep_get, deep_put, forward
 from cui.colors import ColorCore, ColorException
 from cui.meta import Singleton, combine_meta_classes
 from cui_tools.io_selector import IOSelector
+from cui_tools.util import last_exception_repr
 
 # =================================== API ======================================
 
@@ -257,7 +258,8 @@ def run_interactive(fn, handle_cancel=False):
           'find_window', 'select_window', 'select_next_window', 'select_previous_window',
           'select_left_window', 'select_right_window', 'select_top_window', 'select_bottom_window',
           'delete_selected_window', 'delete_all_windows',
-          'split_window_below', 'split_window_right', 'selected_window'],
+          'split_window_below', 'split_window_right', 'selected_window',
+          'split_toggle_type', 'split_switch_children'],
          Frame)
 class Core(WithKeymap,
            ColorCore,
@@ -310,9 +312,8 @@ class Core(WithKeymap,
         """
         Call to log the last thrown exception exception.
         """
-        exc_type, exc_value, exc_tb = sys.exc_info()
-        cui.message(traceback.format_exception_only(exc_type, exc_value)[-1],
-                    log_message=traceback.format_exc())
+        message, trace = last_exception_repr()
+        cui.message(message, log_message=trace)
 
     def get_buffer(self, buffer_class, *args):
         buffer_name = buffer_class.name(*args)

@@ -3,8 +3,9 @@
 TODO
 ====
 
+ --> toggle split_type
+
  --> Cleanup
-     --> When input is received handle prompt erasing and reprinting
      --> Consolidate adding of line-endings
      --> LineBufferedSession.send_all should use encoding from LineReader
 

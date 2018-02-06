@@ -43,19 +43,40 @@ def _patch():
 
 
 class CommandLine(object):
-    def __init__(self, prompt, callback, env=None):
+    def __init__(self, prompt, callback, env=None, encoding='utf-8'):
         self._env = env
-        self._prompt = prompt
+        self._prompt = prompt.encode(encoding)
+        self._encoding = encoding
         self._rl = _patch()
         self._callback = callback
+        self._internal_callback = None
 
     def start(self):
         def input_callback(_):
             self._rl.callback_read_char()
 
-        self._rl.callback_handler_install(self._prompt, self._callback)
+        self._internal_callback = self.on_line_read
+        self._rl.callback_handler_install(self._prompt, self._internal_callback)
         self._env.register_waitable(sys.stdin, input_callback)
+
+    def is_active(self):
+        return self._internal_callback != None
+
+    def on_line_read(self, line):
+        self._callback(None if line is None else line.decode(self._encoding))
 
     def stop(self):
         self._env.unregister_waitable(sys.stdin)
         self._rl.callback_handler_remove()
+        self._internal_callback = None
+
+    def redisplay(self):
+        self._rl.callback_handler_install(self._prompt, self._internal_callback)
+
+    def clear(self):
+        sys.stdout.write('\r')
+
+    def write(self, buf):
+        self.clear()
+        print(buf)
+        self.redisplay()

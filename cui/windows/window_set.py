@@ -249,6 +249,29 @@ class WindowSet(object):
         """
         return self._split_window('rsplit')
 
+    def split_toggle_type(self):
+        parent = self._selected_window['parent']
+        if not parent:
+            return
+
+        if parent['wm_type'] == 'rsplit':
+            parent['wm_type'] = 'bsplit'
+        elif parent['wm_type'] == 'bsplit':
+            parent['wm_type'] = 'rsplit'
+        else:
+            return
+
+        self._resize_window_tree(parent)
+
+    def split_switch_children(self):
+        parent = self._selected_window['parent']
+        if not parent:
+            return
+
+        content = parent['content']
+        parent['content'] = [content[1], content[0]]
+        self._resize_window_tree(parent)
+
     def delete_selected_window(self):
         # Do not delete last window
         if self._root == self._selected_window:

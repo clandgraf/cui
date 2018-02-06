@@ -9,7 +9,8 @@ EVT_RESIZE = 'key_resize'
 
 KEYCHORD_MAP = {
     'C-m':        '<enter>',
-    'C-i':        '<tab>'
+    'C-i':        '<tab>',
+    ' ':          '<space>',
 }
 
 KEYNAME_MAP = {

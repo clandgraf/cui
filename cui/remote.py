@@ -3,20 +3,35 @@
 # found in the LICENSE file.
 
 import cui
+import json
 
 from cui_tools.server import LineBufferedSession, Server
+from cui_tools.util import last_exception_repr, unescape_c, escape_c
 
 cui.def_variable(['cui-remote', 'host'], 'localhost')
 cui.def_variable(['cui-remote', 'port'], 5000)
 
 class RemoteSession(LineBufferedSession):
     def __init__(self, *args, **kwargs):
-        super(RemoteSession, self).__init__(*args, encoding='unicode_escape', **kwargs)
+        super(RemoteSession, self).__init__(*args, encoding='utf-8', **kwargs)
 
     def handle_line(self, line):
         # Echo Server Test
-        result = cui.eval_python(line)
-        self.send_all((str(result) + '\n').encode('utf-8'))
+        try:
+            msg = json.loads(line)
+            if msg['type'] == 'eval':
+                self.send_response('result', str(cui.eval_python(unescape_c(msg.get('line')))))
+        except:
+            cui.exception()
+
+            _, trace = last_exception_repr()
+            self.send_response('trace', trace)
+
+    def send_response(self, rtype, line):
+        self.send_line(json.dumps({
+            'type': rtype,
+            'line': escape_c(line),
+        }))
 
 cui.def_variable(
     ['cui-remote', 'server'],

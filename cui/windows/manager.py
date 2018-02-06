@@ -20,6 +20,8 @@ from cui.windows.window_set import WindowSet
           'select_bottom_window',
           'split_window_below',
           'split_window_right',
+          'split_toggle_type',
+          'split_switch_children',
           'delete_selected_window',
           'delete_all_windows'],
          WindowSet)

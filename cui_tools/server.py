@@ -96,7 +96,12 @@ class Session(object):
 
 
 class LineBufferedSession(LineReader, Session):
-    pass
+    def send_line(self, line):
+        self.send_all(line.encode(self._encoding) + b'\n')
+
+    def send_lines(self, lines):
+        for line in lines:
+            self.send_line(line)
 
 
 class Connection(object):
@@ -114,7 +119,10 @@ class Connection(object):
         self._env.register_waitable(self._sock, self.session.handle)
 
     def stop(self):
-        pass
+        self._env.unregister_waitable(self._sock)
+        self._sock.shutdown(socket.SHUT_RDWR)
+        self._sock.close()
+
 
 
 class Server(object):

@@ -41,7 +41,8 @@ class Window(object):
           'find_window', 'select_window', 'select_next_window', 'select_previous_window',
           'select_left_window', 'select_right_window', 'select_top_window', 'select_bottom_window',
           'delete_selected_window', 'delete_all_windows',
-          'split_window_below', 'split_window_right', 'selected_window'],
+          'split_window_below', 'split_window_right', 'selected_window',
+          'split_toggle_type', 'split_switch_children'],
          WindowManager)
 class Frame(object):
     def __init__(self, core):
