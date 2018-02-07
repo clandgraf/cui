@@ -12,6 +12,6 @@ setup(
     packages =         ['cui', 'cui_tools'],
     entry_points =     {'console_scripts': [
         'cui = cui.__main__:main',
-        'cuiclient = cui_client.__main__:main',
+        'cuicli = cui_client.__main__:main',
     ]}
 )
